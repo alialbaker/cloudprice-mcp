@@ -2,18 +2,18 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.alialbaker/cloudprice-mcp",
   "title": "Cloudprice",
-  "description": "Compare on-demand compute + storage pricing across AWS, Azure, and GCP. Bulk workload compare.",
+  "description": "The FinOps MCP server. 25 tools for multi-cloud cost + carbon comparison across AWS / Azure / GCP / OCI, plus cross-provider LLM token pricing (~2300 model/provider combinations: Anthropic / OpenAI / Google / Bedrock / Vertex / Azure OpenAI / Together AI / Fireworks / Groq / Replicate / Perplexity / OpenRouter). FOCUS 1.3 export plugs into Vantage / Apptio / Microsoft Cost Mgmt / OpenCost. Weekly auto-refreshed catalogs with dated price-history snapshots.",
   "repository": {
-    "url": "https://github.com/alialbaker/cloudprice-mcp",
+    "url": "https://github.com/Albaker-Group/cloudprice-mcp",
     "source": "github"
   },
-  "version": "0.2.2",
+  "version": "0.18.0",
   "websiteUrl": "https://albaker.info",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "cloudprice-mcp",
-      "version": "0.2.2",
+      "version": "0.18.0",
       "transport": {
         "type": "stdio"
       }

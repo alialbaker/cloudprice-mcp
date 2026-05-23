@@ -774,21 +774,24 @@ async def list_tools() -> list[Tool]:
                 "additionalProperties": False,
             },
         ),
-        # --- v0.16.0 extended LLM catalog (LiteLLM-ingested) ---
+        # --- v0.16.0 / v0.17.0 extended LLM catalog (LiteLLM + OpenRouter) ---
         Tool(
             name="lookup_extended_model_pricing",
             description=(
-                "Search the extended LLM catalog (~2000 model/provider combinations "
-                "auto-ingested from LiteLLM's public price feed). Covers Together AI, "
-                "Fireworks, Replicate, Groq, Cerebras, Perplexity, regional Bedrock/"
-                "Azure variants, older model versions — every (model, provider) "
-                "combination LiteLLM tracks for chat/completion/responses modes. "
-                "Complements compare_token_pricing (which is hand-curated and covers "
-                "19 vetted models with rich provider mapping). Use this when the user "
-                "asks about a model or provider compare_token_pricing doesn't know — "
-                "e.g., 'cheapest place to host Llama 3.1 405B', 'Together AI pricing', "
-                "'what Groq charges for Mixtral'. Every row tagged source='litellm' "
-                "so callers know it's community-maintained, not vendor-verified."
+                "Search the extended LLM catalog (~2300 model/provider combinations "
+                "auto-ingested weekly from two upstreams: LiteLLM's public JSON "
+                "(direct-provider retail prices for Together AI, Fireworks, Replicate, "
+                "Groq, Cerebras, Perplexity, regional Bedrock/Azure variants, etc.) "
+                "and OpenRouter's /api/v1/models (routed prices including OpenRouter's "
+                "margin). Every row tagged source='litellm' or source='openrouter' "
+                "so callers can compare direct vs routed pricing for the same model. "
+                "Complements compare_token_pricing (hand-curated, 19 vetted models). "
+                "Use this when the user asks about: (a) a model or provider "
+                "compare_token_pricing doesn't know — 'cheapest place to host Llama "
+                "3.1 405B', 'Together AI pricing', 'what Groq charges for Mixtral' — "
+                "or (b) whether OpenRouter routing is cheaper or more expensive than "
+                "going direct to Bedrock/Anthropic/OpenAI ('does OpenRouter add margin "
+                "for Claude 3 Haiku?')."
             ),
             inputSchema={
                 "type": "object",
@@ -799,7 +802,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "provider": {
                         "type": "string",
-                        "description": "Filter to one provider, e.g. 'bedrock', 'fireworks_ai', 'together_ai', 'groq', 'perplexity', 'replicate'.",
+                        "description": "Filter to one provider: 'bedrock', 'fireworks_ai', 'together_ai', 'groq', 'perplexity', 'replicate', 'openrouter' (for routed prices), etc.",
                     },
                     "mode": {
                         "type": "string",
@@ -813,6 +816,11 @@ async def list_tools() -> list[Tool]:
                     },
                     "monthly_input_tokens": {"type": "integer", "minimum": 0},
                     "monthly_output_tokens": {"type": "integer", "minimum": 0},
+                    "source": {
+                        "type": "string",
+                        "enum": ["litellm", "openrouter"],
+                        "description": "Filter to one upstream source. 'litellm' = direct-provider retail prices. 'openrouter' = OpenRouter routed prices (includes their margin). Default: both — useful for cross-source comparison.",
+                    },
                     "limit": {"type": "integer", "minimum": 1, "default": 25},
                 },
                 "additionalProperties": False,
@@ -1261,6 +1269,7 @@ def _handle_lookup_extended_model_pricing(catalog, args):  # noqa: ARG001 — ex
             max_context_tokens=args.get("max_context_tokens"),
             monthly_input_tokens=args.get("monthly_input_tokens"),
             monthly_output_tokens=args.get("monthly_output_tokens"),
+            source=args.get("source"),
             limit=int(args.get("limit", 25)),
         )
     except ValueError as e:

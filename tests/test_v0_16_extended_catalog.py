@@ -110,25 +110,31 @@ def test_transform_stable_sort_by_provider_then_id():
 
 
 def _install_fixture_catalog(monkeypatch):
+    """Install a fixture in the merged-catalog shape — every row has
+    `model_id` + `source`, mirroring what _load_catalog produces from the
+    two source files."""
     catalog = {
         "as_of": "2026-05-23",
-        "source": "litellm",
-        "source_url": "https://example.invalid/fixture.json",
+        "sources_loaded": ["litellm", "openrouter"],
         "models": [
-            {"litellm_id": "claude-3-haiku-20240307", "provider": "anthropic", "mode": "chat",
+            {"model_id": "claude-3-haiku-20240307", "source": "litellm",
+             "provider": "anthropic", "mode": "chat",
              "input_per_1m_usd": 0.25, "output_per_1m_usd": 1.25, "context_window_tokens": 200000},
-            {"litellm_id": "bedrock/us-east-1/anthropic.claude-3-haiku-20240307-v1:0",
-             "provider": "bedrock", "mode": "chat",
+            {"model_id": "bedrock/us-east-1/anthropic.claude-3-haiku-20240307-v1:0",
+             "source": "litellm", "provider": "bedrock", "mode": "chat",
              "input_per_1m_usd": 0.25, "output_per_1m_usd": 1.25, "context_window_tokens": 200000},
-            {"litellm_id": "together_ai/meta-llama/Llama-3.1-70B-Instruct",
-             "provider": "together_ai", "mode": "chat",
+            {"model_id": "together_ai/meta-llama/Llama-3.1-70B-Instruct",
+             "source": "litellm", "provider": "together_ai", "mode": "chat",
              "input_per_1m_usd": 0.88, "output_per_1m_usd": 0.88, "context_window_tokens": 128000},
-            {"litellm_id": "groq/llama-3.1-70b-versatile",
-             "provider": "groq", "mode": "chat",
+            {"model_id": "groq/llama-3.1-70b-versatile",
+             "source": "litellm", "provider": "groq", "mode": "chat",
              "input_per_1m_usd": 0.59, "output_per_1m_usd": 0.79, "context_window_tokens": 32768},
-            {"litellm_id": "fireworks_ai/llama-v3p1-70b-instruct",
-             "provider": "fireworks_ai", "mode": "chat",
+            {"model_id": "fireworks_ai/llama-v3p1-70b-instruct",
+             "source": "litellm", "provider": "fireworks_ai", "mode": "chat",
              "input_per_1m_usd": 0.90, "output_per_1m_usd": 0.90, "context_window_tokens": 128000},
+            {"model_id": "anthropic/claude-3-haiku",
+             "source": "openrouter", "provider": "openrouter", "mode": "chat",
+             "input_per_1m_usd": 0.30, "output_per_1m_usd": 1.50, "context_window_tokens": 200000},
         ],
     }
     monkeypatch.setattr(extended_tokens, "_cache", catalog)
@@ -138,7 +144,7 @@ def _install_fixture_catalog(monkeypatch):
 def test_query_substring_match_case_insensitive(monkeypatch):
     _install_fixture_catalog(monkeypatch)
     out = extended_tokens.lookup_extended_model_pricing(query="llama-3.1-70B")
-    ids = {r["litellm_id"] for r in out["rows"]}
+    ids = {r["model_id"] for r in out["rows"]}
     # Fireworks entry uses "v3p1" not "3.1" — should NOT match.
     assert ids == {
         "together_ai/meta-llama/Llama-3.1-70B-Instruct",
@@ -156,10 +162,10 @@ def test_provider_filter(monkeypatch):
 def test_context_filter_excludes_smaller_models(monkeypatch):
     _install_fixture_catalog(monkeypatch)
     out = extended_tokens.lookup_extended_model_pricing(max_context_tokens=100000)
-    # groq has 32K, should be excluded; the rest should pass
-    ids = {r["litellm_id"] for r in out["rows"]}
+    # groq has 32K, should be excluded; the other 5 rows pass.
+    ids = {r["model_id"] for r in out["rows"]}
     assert "groq/llama-3.1-70b-versatile" not in ids
-    assert len(ids) == 4
+    assert len(ids) == 5
 
 
 def test_ranks_by_output_cost_when_no_volumes(monkeypatch):
@@ -188,7 +194,8 @@ def test_ranks_by_monthly_total_when_volumes_provided(monkeypatch):
 def test_limit_truncates_results(monkeypatch):
     _install_fixture_catalog(monkeypatch)
     out = extended_tokens.lookup_extended_model_pricing(query="claude", limit=1)
-    assert out["total_matches"] == 2
+    # Three "claude" rows: 2 from litellm + 1 from openrouter.
+    assert out["total_matches"] == 3
     assert out["returned_rows"] == 1
     assert len(out["rows"]) == 1
 
@@ -197,7 +204,7 @@ def test_returns_source_provenance_per_row(monkeypatch):
     _install_fixture_catalog(monkeypatch)
     out = extended_tokens.lookup_extended_model_pricing(query="claude")
     for row in out["rows"]:
-        assert row["source"] == "litellm"
+        assert row["source"] in {"litellm", "openrouter"}
 
 
 def test_headline_when_no_matches(monkeypatch):

@@ -91,6 +91,17 @@ jobs:
           python scripts/refresh_extended_catalog.py || \
             echo "Extended catalog refresh failed — see logs."
 
+      - name: Refresh OpenRouter catalog (v0.17.0+)
+        # Pulls ~350 routed-price entries from OpenRouter's public
+        # /api/v1/models. Lives in the same extended catalog merged at load
+        # time; lets users compare direct-provider prices (litellm) vs the
+        # routed price (openrouter) for the same model.
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python scripts/refresh_openrouter_catalog.py || \
+            echo "OpenRouter catalog refresh failed — see logs."
+
       - name: Build PR body file
         # Writes /tmp/pr_body.md combining the standard PR template + the refresh
         # summary. Bypasses the GITHUB_OUTPUT heredoc entirely (which kept tripping

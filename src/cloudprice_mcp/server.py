@@ -31,6 +31,7 @@ from .finops.report import generate_decision_report
 from .finops.sentinel import watch_workload
 from .finops.spot import compare_spot
 from .finops.tco import GrowthAssumptions, compare_total_cost_of_ownership
+from .finops.extended_tokens import lookup_extended_model_pricing
 from .finops.tokens import compare_token_pricing
 from .inventory import InventoryError, parse_dict
 from .pricing import HOURS_PER_MONTH, Cloud, load_catalog
@@ -773,6 +774,50 @@ async def list_tools() -> list[Tool]:
                 "additionalProperties": False,
             },
         ),
+        # --- v0.16.0 extended LLM catalog (LiteLLM-ingested) ---
+        Tool(
+            name="lookup_extended_model_pricing",
+            description=(
+                "Search the extended LLM catalog (~2000 model/provider combinations "
+                "auto-ingested from LiteLLM's public price feed). Covers Together AI, "
+                "Fireworks, Replicate, Groq, Cerebras, Perplexity, regional Bedrock/"
+                "Azure variants, older model versions — every (model, provider) "
+                "combination LiteLLM tracks for chat/completion/responses modes. "
+                "Complements compare_token_pricing (which is hand-curated and covers "
+                "19 vetted models with rich provider mapping). Use this when the user "
+                "asks about a model or provider compare_token_pricing doesn't know — "
+                "e.g., 'cheapest place to host Llama 3.1 405B', 'Together AI pricing', "
+                "'what Groq charges for Mixtral'. Every row tagged source='litellm' "
+                "so callers know it's community-maintained, not vendor-verified."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Case-insensitive substring matched against the model ID. E.g. 'llama-3.1-70b' matches every Llama 3.1 70B variant on every host.",
+                    },
+                    "provider": {
+                        "type": "string",
+                        "description": "Filter to one provider, e.g. 'bedrock', 'fireworks_ai', 'together_ai', 'groq', 'perplexity', 'replicate'.",
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["chat", "completion", "responses"],
+                        "description": "Mode filter. Default: any (catalog already excludes embedding/image/audio).",
+                    },
+                    "max_context_tokens": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Skip models with smaller context. Useful for 'cheapest models that support 200K+ context'.",
+                    },
+                    "monthly_input_tokens": {"type": "integer", "minimum": 0},
+                    "monthly_output_tokens": {"type": "integer", "minimum": 0},
+                    "limit": {"type": "integer", "minimum": 1, "default": 25},
+                },
+                "additionalProperties": False,
+            },
+        ),
         # --- v0.11.0 GPU pricing ---
         Tool(
             name="compare_gpu_workload",
@@ -1207,6 +1252,22 @@ def _handle_compare_token_pricing(catalog, args):  # noqa: ARG001 — catalog un
     return _ok(result)
 
 
+def _handle_lookup_extended_model_pricing(catalog, args):  # noqa: ARG001 — extended catalog is separate file
+    try:
+        result = lookup_extended_model_pricing(
+            query=args.get("query"),
+            provider=args.get("provider"),
+            mode=args.get("mode"),
+            max_context_tokens=args.get("max_context_tokens"),
+            monthly_input_tokens=args.get("monthly_input_tokens"),
+            monthly_output_tokens=args.get("monthly_output_tokens"),
+            limit=int(args.get("limit", 25)),
+        )
+    except ValueError as e:
+        return _err(f"lookup_extended_model_pricing: {e}")
+    return _ok(result)
+
+
 def _handle_compare_gpu_workload(catalog, args):
     gpu_type = args.get("gpu_type", "")
     gpu_count = int(args.get("gpu_count", 1))
@@ -1312,6 +1373,7 @@ _TOOL_HANDLERS = {
     "compare_gpu_workload": _handle_compare_gpu_workload,
     # v0.12.0 LLM token pricing
     "compare_token_pricing": _handle_compare_token_pricing,
+    "lookup_extended_model_pricing": _handle_lookup_extended_model_pricing,
     # v0.13.0 anomaly detection
     "detect_price_anomalies": _handle_detect_price_anomalies,
     # v0.14.0 FinOps decision report

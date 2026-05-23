@@ -34,22 +34,37 @@ def test_returns_carbon_kind_and_per_cloud_rows():
         assert row["gpu_count_in_sku"] >= row["gpu_count_requested"]
 
 
-def test_h100_8gpu_ranks_oci_first():
-    """OCI BM.GPU.H100.8 at $80/h beats AWS p5.48xlarge at $98.32/h."""
+def test_h100_8gpu_returns_cheapest_first():
+    """Whoever has the cheapest 8x H100 in the catalog wins. Originally OCI's
+    BM.GPU.H100.8 at $80/h beat AWS p5.48xlarge at $98.32/h; in May 2026 AWS
+    cut H100 pricing 44% and now ranks first. We test the BEHAVIOR (winner is
+    actually cheapest) instead of asserting a specific provider — which was
+    brittle and broke on the first real auto-refresh."""
     cat = load_catalog()
     r = compare_gpu_workload(cat, gpu_type="H100", gpu_count=8)
-    assert r["recommended"] == "oci"
-    assert r["per_cloud"][0]["sku"] == "BM.GPU.H100.8"
-    assert r["per_cloud"][0]["hourly_usd"] == pytest.approx(80.0)
+    assert r["per_cloud"], "expected at least one H100 SKU in catalog"
+    # Recommended must equal the row with lowest hourly_usd
+    cheapest_row = min(r["per_cloud"], key=lambda row: row["hourly_usd"])
+    assert r["recommended"] == cheapest_row["cloud"]
+    assert r["per_cloud"][0]["cloud"] == cheapest_row["cloud"]
+    # Per-cloud rows must be sorted cheapest-first
+    hourly_prices = [row["hourly_usd"] for row in r["per_cloud"]]
+    assert hourly_prices == sorted(hourly_prices)
 
 
-def test_per_gpu_winner_separate_from_absolute_winner():
-    """For 1x A100: Azure/GCP win absolute ($3.67/h) but OCI BM.GPU4.8 has
-    lowest $/GPU/h ($3.05/h, $24.40 ÷ 8) — though it's over-provisioned."""
+def test_a100_1gpu_per_gpu_winner_distinct_from_absolute():
+    """For 1x A100: absolute winner may differ from per-GPU winner depending
+    on how each cloud packages the SKU (bare-metal 8x vs single-GPU). Test
+    that the per_gpu_hourly_winner field exists and correctly identifies the
+    lowest $/GPU/h — without hard-coding which provider that is."""
     cat = load_catalog()
     r = compare_gpu_workload(cat, gpu_type="A100", gpu_count=1)
-    assert r["recommended"] in ("azure", "gcp")  # tied at $3.67/h
-    assert r["per_gpu_hourly_winner"] == "oci"
+    assert r["per_cloud"], "expected at least one A100 SKU in catalog"
+    assert r["recommended"] is not None
+    assert r["per_gpu_hourly_winner"] is not None
+    # The per-GPU winner should genuinely have the lowest hourly_usd_per_gpu
+    by_per_gpu = sorted(r["per_cloud"], key=lambda row: row["hourly_usd_per_gpu"])
+    assert r["per_gpu_hourly_winner"] == by_per_gpu[0]["cloud"]
 
 
 def test_over_provisioned_flagged_when_only_bigger_sku_available():
@@ -106,8 +121,12 @@ def test_headline_mentions_recommended_sku_and_price():
     cat = load_catalog()
     r = compare_gpu_workload(cat, gpu_type="H100", gpu_count=8)
     headline = r["headline"]
-    assert "BM.GPU.H100.8" in headline
-    assert "80.0000" in headline or "$80" in headline
+    # Catalog-drift-resilient: assert headline includes whichever SKU + price
+    # actually won, not a hard-coded specific cloud.
+    winner = r["per_cloud"][0]
+    assert winner["sku"] in headline
+    # Headline formats hourly as $XX.XXXX/h — check the integer dollars portion.
+    assert f"${int(winner['hourly_usd'])}" in headline or f"{winner['hourly_usd']:.4f}" in headline
 
 
 def test_per_cloud_row_has_gpu_memory():

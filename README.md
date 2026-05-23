@@ -9,7 +9,7 @@
 
 **The FinOps MCP server.** Gives Claude, GitHub Copilot, Cursor, Windsurf, Cline, Continue, Zed — or any MCP-compatible AI — structured pricing data and analysis primitives across **AWS, Azure, GCP, and OCI**. AI clients use cloudprice-mcp to compute Reserved Instance break-even, multi-cloud workload TCO, exit-cost migration analyses, snapshot cost modeling, and egress arbitrage — the kind of FinOps decisions that normally live in three browser tabs and a half-built spreadsheet.
 
-**20 tools** covering compute, block storage, object storage, managed Postgres, **egress** (internet + inter-region with OCI's 10 TB free tier surfaced explicitly), Multi-AZ workloads, snapshots with realistic incremental modeling, Reserved Instance / Savings Plan discounts, FinOps decision suite (migration, commitment, TCO, egress arbitrage), **multi-cloud spot pricing** with eviction tradeoffs, **multi-cloud price history** (the only public weekly-refreshed dataset of its kind), a **stateless cost drift sentinel** for scheduled agents, **multi-cloud carbon footprint** ($ AND kg CO2e on the same query), and **multi-cloud GPU pricing** (T4 / A10 / L4 / L40S / V100 / A100 / H100 across all 4 clouds). OCI Always Free tier (4 OCPU compute, 20 GB object storage, 10 TB egress) surfaced as $0 line items where it applies.
+**21 tools** covering compute, block storage, object storage, managed Postgres, **egress** (internet + inter-region with OCI's 10 TB free tier surfaced explicitly), Multi-AZ workloads, snapshots with realistic incremental modeling, Reserved Instance / Savings Plan discounts, FinOps decision suite (migration, commitment, TCO, egress arbitrage), **multi-cloud spot pricing** with eviction tradeoffs, **multi-cloud price history** (the only public weekly-refreshed dataset of its kind), a **stateless cost drift sentinel** for scheduled agents, **multi-cloud carbon footprint** ($ AND kg CO2e on the same query), **multi-cloud GPU pricing** (T4 / A10 / L4 / L40S / V100 / A100 / H100 across all 4 clouds), and **cross-provider LLM token pricing** (Claude / GPT / Gemini / Llama / Mistral / DeepSeek across Anthropic / OpenAI / Bedrock / Vertex / Azure OpenAI). OCI Always Free tier (4 OCPU compute, 20 GB object storage, 10 TB egress) surfaced as $0 line items where it applies.
 
 **One-line install configures every AI client you have:** `pip install cloudprice-mcp && cloudprice-mcp setup` — auto-detects Claude Desktop, GitHub Copilot Agent Mode, Cursor, Windsurf, Cline, Continue.dev, and Zed, then asks Y/N before writing each config.
 
@@ -208,6 +208,46 @@ Real questions this unlocks:
 
 > *"Show me every multi-cloud price mover since January."*
 > → AI calls `list_tracked_skus(since="2026-01-01")`, returns every SKU + its latest price + change.
+
+### Cross-provider LLM token pricing (v0.12.0+)
+
+Token costs are the fastest-growing FinOps line item in 2026 — and **nobody compares them cross-provider openly**. The same model is often available on multiple providers at different prices (Claude on Anthropic / Bedrock / Vertex; GPT on OpenAI / Azure OpenAI; Llama on Bedrock).
+
+```python
+from cloudprice_mcp.finops.tokens import compare_token_pricing
+
+# Cheapest model overall for a 50M-in / 10M-out monthly workload
+r = compare_token_pricing(
+    monthly_input_tokens=50_000_000,
+    monthly_output_tokens=10_000_000,
+)
+# gemini-1.5-flash on google is cheapest at $6.75/mo for 50M in / 10M out tokens.
+#   gemini-1.5-flash       on google        $   6.75/mo
+#   gemini-1.5-flash       on vertex        $   6.75/mo
+#   gemini-2.0-flash       on google        $   9.00/mo
+#   llama-3.1-8b           on bedrock       $  13.20/mo
+#   gpt-4o-mini            on openai        $  13.50/mo
+#   deepseek-v3            on deepseek      $  24.50/mo
+```
+
+```python
+# Same model across all hosts — proves Claude 4 Sonnet provider parity
+# (and surfaces that only Anthropic API publishes the 90%-off cache_read rate)
+r = compare_token_pricing(model_id="claude-4-sonnet")
+#   anthropic   in=$3/1M  out=$15/1M  cache_read=$0.30/1M  cache_write=$3.75/1M
+#   bedrock     in=$3/1M  out=$15/1M
+#   vertex      in=$3/1M  out=$15/1M
+```
+
+Covers 19 models across 8 providers: Claude (4 Opus / 4 Sonnet / 3.5 Haiku / 3 Haiku), GPT (5, 5 mini, 4o, 4o-mini, o1), Gemini (2.0 Flash, 1.5 Pro/Flash), Llama (3.1 8B/70B/405B, 3.3 70B), Mistral Large 2, DeepSeek V3/R1.
+
+Real questions this unlocks:
+
+> *"Cheapest model that handles 200K context for output-heavy chat at 10M/mo output volume?"*
+> → AI calls `compare_token_pricing` with the volume + an optional model_family filter, returns ranked monthly cost across every viable model+provider combo.
+
+> *"Should I use Anthropic API or Bedrock for Claude?"*
+> → `compare_token_pricing(model_id="claude-4-sonnet")` shows price parity on per-token rates, but Anthropic API exposes a 10x cheaper cache_read rate that Bedrock doesn't publish. For caching-heavy workloads, Anthropic wins.
 
 ### Multi-cloud GPU pricing (v0.11.0+)
 

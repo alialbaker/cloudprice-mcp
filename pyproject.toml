@@ -1,7 +1,7 @@
 [project]
 name = "cloudprice-mcp"
-version = "0.18.0"
-description = "The Green FinOps MCP server: multi-cloud cost AND carbon comparison for AI assistants. RI break-even, multi-cloud TCO, migration, egress arbitrage, spot pricing, anomaly detection, CFO-grade decision reports, carbon footprint (kg CO2e), FOCUS 1.3 export (plugs into Vantage / Apptio / Microsoft Cost Mgmt / OpenCost), weekly auto-refreshed cloud + LLM-token catalogs (~2300 model/provider combinations via LiteLLM + OpenRouter ingest covering Together AI / Fireworks / Groq / Replicate / Perplexity + the hyperscalers) with dated price-history snapshots across AWS / Azure / GCP / OCI / Bedrock / Anthropic / OpenAI / Google / Mistral / DeepSeek. 25 tools, 7 AI clients."
+version = "0.18.1"
+description = "The FinOps MCP server: multi-cloud cost + carbon across AWS, Azure, GCP, OCI. 25 tools — RI break-even, TCO, migration, egress arbitrage, spot, GPU pricing, anomaly detection, CFO decision reports, carbon (kg CO2e), FOCUS 1.3 export (Vantage / Apptio / Cost Mgmt / OpenCost). LLM token pricing across ~2300 model/provider combinations (Anthropic, OpenAI, Bedrock, Vertex, Azure OpenAI, Together, Fireworks, Groq, OpenRouter). Weekly auto-refresh + price-history snapshots."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

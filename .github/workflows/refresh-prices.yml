@@ -1,7 +1,8 @@
 name: Refresh price catalog
 
-# Weekly auto-refresh against each cloud's public pricing API.
-# Opens a PR with the updated prices.json + a dated snapshot.
+# Weekly auto-refresh against each cloud's public pricing API + LLM token-price
+# refresh (v0.15.0+). Opens a single PR with both prices.json + token_prices.json
+# updates plus dated snapshots.
 # You review + merge -> a new patch release goes out (separate workflow, v0.7.1+).
 #
 # Triggered by:
@@ -71,6 +72,16 @@ jobs:
           set -euo pipefail
           python scripts/refresh_prices.py --output-summary /tmp/summary.md
 
+      - name: Run LLM token-price refresh (v0.15.0+)
+        # Fail-soft: a Bedrock pricing-API hiccup shouldn't kill the cloud-price PR.
+        # If it succeeds, the diff is appended to the PR body; if it fails the
+        # surrounding workflow still opens the cloud PR.
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python scripts/refresh_tokens.py --output-summary /tmp/tokens_summary.md || \
+            echo "Token refresh produced no changes or failed — see logs." > /tmp/tokens_summary.md
+
       - name: Build PR body file
         # Writes /tmp/pr_body.md combining the standard PR template + the refresh
         # summary. Bypasses the GITHUB_OUTPUT heredoc entirely (which kept tripping
@@ -78,14 +89,25 @@ jobs:
         # peter-evans/create-pull-request's body-path option reads files directly.
         run: |
           {
-            echo "Automated price refresh from AWS / Azure / OCI public pricing APIs."
+            echo "Automated price refresh from AWS / Azure / OCI public pricing APIs + Bedrock token-price refresh."
+            echo ""
+            echo "## Cloud SKUs"
             echo ""
             cat /tmp/summary.md
+            echo ""
+            echo "## LLM token prices (v0.15.0+)"
+            echo ""
+            if [ -f /tmp/tokens_summary.md ]; then
+              cat /tmp/tokens_summary.md
+            else
+              echo "No token-price changes."
+            fi
             echo ""
             echo ""
             echo "---"
             echo "**Review checklist**"
             echo "- [ ] Snapshot file \`src/cloudprice_mcp/data/prices/YYYY-MM-DD.json\` created"
+            echo "- [ ] Snapshot file \`src/cloudprice_mcp/data/token_prices/YYYY-MM-DD.json\` created (if tokens changed)"
             echo "- [ ] Diffs look reasonable (no clouds dropped, no 10x+ spikes)"
             echo "- [ ] Tests still pass (CI on this PR)"
             echo "- [ ] Ready to merge — a release will be tagged after merge"
@@ -110,8 +132,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: auto/refresh-prices
           delete-branch: true
-          commit-message: "chore(prices): weekly refresh from provider APIs"
-          title: "chore(prices): weekly refresh (${{ github.run_id }})"
+          commit-message: "chore(prices): weekly refresh from provider APIs + token prices"
+          title: "chore(prices): weekly refresh — clouds + LLM tokens (${{ github.run_id }})"
           body-path: /tmp/pr_body.md
           labels: |
             auto-refresh

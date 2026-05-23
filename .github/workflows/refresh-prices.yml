@@ -82,6 +82,15 @@ jobs:
           python scripts/refresh_tokens.py --output-summary /tmp/tokens_summary.md || \
             echo "Token refresh produced no changes or failed — see logs." > /tmp/tokens_summary.md
 
+      - name: Refresh extended LLM catalog from LiteLLM (v0.16.0+)
+        # Pulls ~2000 (model, provider) combinations from BerriAI/litellm's
+        # public JSON. Unauthenticated, fast. Fail-soft for the same reason.
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python scripts/refresh_extended_catalog.py || \
+            echo "Extended catalog refresh failed — see logs."
+
       - name: Build PR body file
         # Writes /tmp/pr_body.md combining the standard PR template + the refresh
         # summary. Bypasses the GITHUB_OUTPUT heredoc entirely (which kept tripping

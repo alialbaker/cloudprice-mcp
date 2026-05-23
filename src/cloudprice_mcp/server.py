@@ -32,6 +32,7 @@ from .finops.sentinel import watch_workload
 from .finops.spot import compare_spot
 from .finops.tco import GrowthAssumptions, compare_total_cost_of_ownership
 from .finops.extended_tokens import lookup_extended_model_pricing
+from .finops.focus_export import export_focus
 from .finops.tokens import compare_token_pricing
 from .inventory import InventoryError, parse_dict
 from .pricing import HOURS_PER_MONTH, Cloud, load_catalog
@@ -774,6 +775,66 @@ async def list_tools() -> list[Tool]:
                 "additionalProperties": False,
             },
         ),
+        # --- v0.18.0 FOCUS 1.3 export ---
+        Tool(
+            name="export_focus",
+            description=(
+                "Emit FOCUS 1.3-shaped rows from any pricing query, ready to "
+                "import into Vantage Custom Providers / Microsoft Cost Mgmt / "
+                "OpenCost / Apptio / any FinOps tool that consumes the FinOps "
+                "Foundation's open billing schema (ratified Dec 2025). The "
+                "rows populate the list-price columns (ListCost, ListUnitPrice, "
+                "PricingQuantity, etc.) and leave billed/contracted/effective "
+                "columns NULL since cloudprice produces projections, not real "
+                "bills — that's explicitly documented in the result's notes "
+                "field. Use this when the user says 'export my comparison to "
+                "FOCUS', 'send this to Vantage', 'plug this into our FinOps "
+                "stack'. Supports query_kind: compute_workload (calls "
+                "assess_migration), token_pricing (compare_token_pricing), "
+                "extended_model_lookup (lookup_extended_model_pricing). Format "
+                "is 'json' (default) or 'csv'."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query_kind": {
+                        "type": "string",
+                        "enum": ["compute_workload", "token_pricing", "extended_model_lookup"],
+                        "description": "Which underlying pricing tool to run before FOCUS-shaping.",
+                    },
+                    "format": {"type": "string", "enum": ["json", "csv"], "default": "json"},
+                    "billing_period_start": {
+                        "type": "string",
+                        "description": "ISO date YYYY-MM-DD for the synthetic billing period start. Defaults to current month.",
+                    },
+                    # compute_workload args (use the standard inventory shape via source_cloud)
+                    "source_cloud": {"type": "string", "enum": ["aws", "azure", "gcp", "oci"]},
+                    "compute": {"type": "array"},
+                    "storage": {"type": "array"},
+                    "object_storage": {"type": "array"},
+                    "egress": {"type": "array"},
+                    "databases": {"type": "array"},
+                    "commitment": {"type": "string"},
+                    "multi_az": {"type": "boolean"},
+                    "targets": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": ["aws", "azure", "gcp", "oci"]},
+                    },
+                    # token_pricing args
+                    "model_family": {"type": "string", "enum": ["claude", "gpt", "gemini", "llama", "mistral", "deepseek"]},
+                    "model_id": {"type": "string"},
+                    "providers": {"type": "array", "items": {"type": "string"}},
+                    "monthly_input_tokens": {"type": "integer", "minimum": 0},
+                    "monthly_output_tokens": {"type": "integer", "minimum": 0},
+                    # extended_model_lookup args
+                    "query": {"type": "string"},
+                    "provider": {"type": "string"},
+                    "mode": {"type": "string", "enum": ["chat", "completion", "responses"]},
+                    "source": {"type": "string", "enum": ["litellm", "openrouter"]},
+                },
+                "required": ["query_kind"],
+            },
+        ),
         # --- v0.16.0 / v0.17.0 extended LLM catalog (LiteLLM + OpenRouter) ---
         Tool(
             name="lookup_extended_model_pricing",
@@ -1260,6 +1321,37 @@ def _handle_compare_token_pricing(catalog, args):  # noqa: ARG001 — catalog un
     return _ok(result)
 
 
+def _handle_export_focus(catalog, args):
+    query_kind = args.get("query_kind")
+    inv = None
+    if query_kind == "compute_workload":
+        try:
+            inv = parse_dict(args)
+        except InventoryError as e:
+            return _err(f"export_focus: {e}")
+    try:
+        result = export_focus(
+            query_kind=query_kind,
+            catalog=catalog,
+            inventory=inv,
+            targets=args.get("targets"),
+            model_family=args.get("model_family"),
+            model_id=args.get("model_id"),
+            providers=args.get("providers"),
+            monthly_input_tokens=args.get("monthly_input_tokens"),
+            monthly_output_tokens=args.get("monthly_output_tokens"),
+            query=args.get("query"),
+            provider=args.get("provider"),
+            mode=args.get("mode"),
+            source=args.get("source"),
+            format=args.get("format", "json"),
+            billing_period_start=args.get("billing_period_start"),
+        )
+    except ValueError as e:
+        return _err(f"export_focus: {e}")
+    return _ok(result)
+
+
 def _handle_lookup_extended_model_pricing(catalog, args):  # noqa: ARG001 — extended catalog is separate file
     try:
         result = lookup_extended_model_pricing(
@@ -1383,6 +1475,7 @@ _TOOL_HANDLERS = {
     # v0.12.0 LLM token pricing
     "compare_token_pricing": _handle_compare_token_pricing,
     "lookup_extended_model_pricing": _handle_lookup_extended_model_pricing,
+    "export_focus": _handle_export_focus,
     # v0.13.0 anomaly detection
     "detect_price_anomalies": _handle_detect_price_anomalies,
     # v0.14.0 FinOps decision report

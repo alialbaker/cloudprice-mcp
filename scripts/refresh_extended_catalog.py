@@ -95,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     if args.dry_run:
         print(f"=== DRY RUN — {len(rows)} models would be written ===")
-        print(f"Sample (first 5):")
+        print("Sample (first 5):")
         for r in rows[:5]:
             print(f"  {r['litellm_id']:60s} provider={r['provider']:18s} "
                   f"in=${r['input_per_1m_usd']:.4f} out=${r['output_per_1m_usd']:.4f}")
@@ -120,59 +120,65 @@ def _transform(raw: dict) -> list[dict]:
     """LiteLLM gives {model_id: {fields}}; we flatten + filter + normalize prices."""
     rows: list[dict] = []
     for litellm_id, attrs in raw.items():
-        if not isinstance(attrs, dict):
-            continue
-        if litellm_id == "sample_spec":
-            continue
-
-        mode = attrs.get("mode")
-        if mode not in TARGET_MODES:
-            continue
-
-        input_cost = attrs.get("input_cost_per_token")
-        output_cost = attrs.get("output_cost_per_token")
-        if input_cost is None or output_cost is None:
-            continue
-        if input_cost <= 0 and output_cost <= 0:
-            continue
-
-        provider_raw = attrs.get("litellm_provider") or "unknown"
-        provider = PROVIDER_NORMALIZATION.get(provider_raw, provider_raw)
-
-        row = {
-            "litellm_id": litellm_id,
-            "provider": provider,
-            "provider_raw": provider_raw,
-            "mode": mode,
-            "input_per_1m_usd": round(float(input_cost) * 1_000_000, 4),
-            "output_per_1m_usd": round(float(output_cost) * 1_000_000, 4),
-        }
-
-        cache_read = attrs.get("cache_read_input_token_cost")
-        if cache_read is not None and cache_read > 0:
-            row["cache_read_per_1m_usd"] = round(float(cache_read) * 1_000_000, 4)
-        cache_create = attrs.get("cache_creation_input_token_cost")
-        if cache_create is not None and cache_create > 0:
-            row["cache_write_per_1m_usd"] = round(float(cache_create) * 1_000_000, 4)
-
-        ctx = attrs.get("max_input_tokens") or attrs.get("max_tokens")
-        if ctx:
-            row["context_window_tokens"] = int(ctx)
-        max_out = attrs.get("max_output_tokens")
-        if max_out:
-            row["max_output_tokens"] = int(max_out)
-
-        # Capability flags useful for routing/filtering
-        for flag in ("supports_vision", "supports_function_calling",
-                     "supports_prompt_caching", "supports_response_schema"):
-            if attrs.get(flag):
-                row[flag] = True
-
-        rows.append(row)
-
-    # Stable order — group by provider then model_id
+        row = _build_row(litellm_id, attrs)
+        if row is not None:
+            rows.append(row)
     rows.sort(key=lambda r: (r["provider"], r["litellm_id"]))
     return rows
+
+
+def _build_row(litellm_id: str, attrs) -> dict | None:
+    if not isinstance(attrs, dict) or litellm_id == "sample_spec":
+        return None
+    mode = attrs.get("mode")
+    if mode not in TARGET_MODES:
+        return None
+    input_cost = attrs.get("input_cost_per_token")
+    output_cost = attrs.get("output_cost_per_token")
+    if input_cost is None or output_cost is None:
+        return None
+    if input_cost <= 0 and output_cost <= 0:
+        return None
+
+    provider_raw = attrs.get("litellm_provider") or "unknown"
+    provider = PROVIDER_NORMALIZATION.get(provider_raw, provider_raw)
+    row = {
+        "litellm_id": litellm_id,
+        "provider": provider,
+        "provider_raw": provider_raw,
+        "mode": mode,
+        "input_per_1m_usd": round(float(input_cost) * 1_000_000, 4),
+        "output_per_1m_usd": round(float(output_cost) * 1_000_000, 4),
+    }
+    _attach_cache_rates(row, attrs)
+    _attach_context(row, attrs)
+    _attach_capability_flags(row, attrs)
+    return row
+
+
+def _attach_cache_rates(row: dict, attrs: dict) -> None:
+    cache_read = attrs.get("cache_read_input_token_cost")
+    if cache_read is not None and cache_read > 0:
+        row["cache_read_per_1m_usd"] = round(float(cache_read) * 1_000_000, 4)
+    cache_create = attrs.get("cache_creation_input_token_cost")
+    if cache_create is not None and cache_create > 0:
+        row["cache_write_per_1m_usd"] = round(float(cache_create) * 1_000_000, 4)
+
+
+def _attach_context(row: dict, attrs: dict) -> None:
+    ctx = attrs.get("max_input_tokens") or attrs.get("max_tokens")
+    if ctx:
+        row["context_window_tokens"] = int(ctx)
+    max_out = attrs.get("max_output_tokens")
+    if max_out:
+        row["max_output_tokens"] = int(max_out)
+
+
+def _attach_capability_flags(row: dict, attrs: dict) -> None:
+    for flag in ("supports_vision", "supports_function_calling",
+                 "supports_prompt_caching", "supports_response_schema"):
+        if attrs.get(flag):
+            row[flag] = True
 
 
 if __name__ == "__main__":

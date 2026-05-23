@@ -25,6 +25,7 @@ from .finops.commitment import ALL_SCENARIOS, optimize_commitment
 from .finops.egress_arbitrage import find_egress_arbitrage
 from .finops.migration import assess_migration
 from .finops.carbon import compare_carbon_footprint
+from .finops.anomaly import detect_price_anomalies
 from .finops.gpu import compare_gpu_workload
 from .finops.sentinel import watch_workload
 from .finops.spot import compare_spot
@@ -662,6 +663,33 @@ async def list_tools() -> list[Tool]:
                 "additionalProperties": False,
             },
         ),
+        # --- v0.13.0 Price anomaly detection ---
+        Tool(
+            name="detect_price_anomalies",
+            description=(
+                "Statistical anomaly detection over the bundled price-history "
+                "dataset. Compounds the v0.7.1 history archive: as snapshots "
+                "accumulate weekly, this tool auto-flags unusual price moves "
+                "without you having to manually inspect every SKU. Two methods, "
+                "auto-selected by dataset density: percent_change (for <5 "
+                "snapshots) and z_score (>=5). Sensitivities: strict (10% / "
+                "z>=2.5), moderate (5% / z>=2.0, default), permissive (2% / z>=1.5). "
+                "Use for 'what changed this week?' and 'anything weird across "
+                "any cloud since {date}?' queries. Excellent source for "
+                "weekly LinkedIn / blog content auto-generation."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "since": {"type": "string", "description": "ISO date — restrict to snapshots on or after this date. Optional."},
+                    "cloud": {"type": "string", "enum": ["aws", "azure", "gcp", "oci"], "description": "Filter to one cloud. Optional."},
+                    "sensitivity": {"type": "string", "enum": ["strict", "moderate", "permissive"], "default": "moderate"},
+                    "method": {"type": "string", "enum": ["percent_change", "z_score", "auto"], "default": "auto"},
+                    "limit": {"type": "integer", "minimum": 1, "default": 25},
+                },
+                "additionalProperties": False,
+            },
+        ),
         # --- v0.12.0 LLM token pricing ---
         Tool(
             name="compare_token_pricing",
@@ -1100,6 +1128,20 @@ def _handle_compare_spot(catalog, args):
     return _ok({"as_of": catalog.as_of, **result})
 
 
+def _handle_detect_price_anomalies(catalog, args):  # noqa: ARG001 — history loads its own data
+    try:
+        result = detect_price_anomalies(
+            since=args.get("since"),
+            cloud=args.get("cloud"),
+            sensitivity=args.get("sensitivity", "moderate"),
+            method=args.get("method", "auto"),
+            limit=int(args.get("limit", 25)),
+        )
+    except ValueError as e:
+        return _err(f"detect_price_anomalies: {e}")
+    return _ok(result)
+
+
 def _handle_compare_token_pricing(catalog, args):  # noqa: ARG001 — catalog unused; token catalog is separate
     try:
         result = compare_token_pricing(
@@ -1219,6 +1261,8 @@ _TOOL_HANDLERS = {
     "compare_gpu_workload": _handle_compare_gpu_workload,
     # v0.12.0 LLM token pricing
     "compare_token_pricing": _handle_compare_token_pricing,
+    # v0.13.0 anomaly detection
+    "detect_price_anomalies": _handle_detect_price_anomalies,
 }
 
 

@@ -27,6 +27,7 @@ from .finops.migration import assess_migration
 from .finops.carbon import compare_carbon_footprint
 from .finops.anomaly import detect_price_anomalies
 from .finops.gpu import compare_gpu_workload
+from .finops.report import generate_decision_report
 from .finops.sentinel import watch_workload
 from .finops.spot import compare_spot
 from .finops.tco import GrowthAssumptions, compare_total_cost_of_ownership
@@ -663,6 +664,38 @@ async def list_tools() -> list[Tool]:
                 "additionalProperties": False,
             },
         ),
+        # --- v0.14.0 FinOps decision report (CFO-grade markdown) ---
+        Tool(
+            name="generate_decision_report",
+            description=(
+                "Generate a CFO-grade FinOps decision report in markdown. "
+                "Combines assess_migration + compare_carbon_footprint into a "
+                "single structured artifact the user can paste into a wiki / "
+                "PR / Slack / email. Sections: executive summary, per-cloud "
+                "cost table, carbon comparison (optional), the workload spec, "
+                "aggregated honest_gaps, and an audit trail (package version, "
+                "catalog as_of, requester, reproduce command). The 'trust' "
+                "angle commercial FinOps tools can't easily replicate because "
+                "their reports live in their UI; this one is markdown the "
+                "user owns. Use when the question is 'we need a decision "
+                "artifact a CFO can sign off on'."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    **_finops_inventory_properties(),
+                    "targets": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": ["aws", "azure", "gcp", "oci"]},
+                        "description": "Optional list of target clouds to compare against the source.",
+                    },
+                    "include_carbon": {"type": "boolean", "default": True},
+                    "requester": {"type": "string", "description": "Optional name/email for the audit trail."},
+                },
+                "required": ["source_cloud"],
+                "additionalProperties": False,
+            },
+        ),
         # --- v0.13.0 Price anomaly detection ---
         Tool(
             name="detect_price_anomalies",
@@ -1128,6 +1161,24 @@ def _handle_compare_spot(catalog, args):
     return _ok({"as_of": catalog.as_of, **result})
 
 
+def _handle_generate_decision_report(catalog, args):
+    try:
+        inv = parse_dict(args)
+    except InventoryError as e:
+        return _err(f"generate_decision_report: {e}")
+    try:
+        result = generate_decision_report(
+            catalog,
+            inv,
+            targets=args.get("targets"),
+            include_carbon=bool(args.get("include_carbon", True)),
+            requester=args.get("requester"),
+        )
+    except ValueError as e:
+        return _err(f"generate_decision_report: {e}")
+    return _ok({"as_of": catalog.as_of, **result})
+
+
 def _handle_detect_price_anomalies(catalog, args):  # noqa: ARG001 — history loads its own data
     try:
         result = detect_price_anomalies(
@@ -1263,6 +1314,8 @@ _TOOL_HANDLERS = {
     "compare_token_pricing": _handle_compare_token_pricing,
     # v0.13.0 anomaly detection
     "detect_price_anomalies": _handle_detect_price_anomalies,
+    # v0.14.0 FinOps decision report
+    "generate_decision_report": _handle_generate_decision_report,
 }
 
 

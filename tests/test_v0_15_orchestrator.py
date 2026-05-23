@@ -93,13 +93,13 @@ def test_splices_returned_entries_back_into_catalog(monkeypatch):
     # Anthropic entry untouched
     anth = catalog["models"][0]["providers"][0]
     assert anth["provider"] == "anthropic"
-    assert anth["input_per_1m_usd"] == 0.25
+    assert anth["input_per_1m_usd"] == pytest.approx(0.25)
 
     # Bedrock entry updated
     bed = catalog["models"][0]["providers"][1]
     assert bed["provider"] == "bedrock"
-    assert bed["input_per_1m_usd"] == 0.20
-    assert bed["output_per_1m_usd"] == 1.00
+    assert bed["input_per_1m_usd"] == pytest.approx(0.20)
+    assert bed["output_per_1m_usd"] == pytest.approx(1.00)
 
 
 def test_models_not_returned_keep_old_prices(monkeypatch):
@@ -118,8 +118,8 @@ def test_models_not_returned_keep_old_prices(monkeypatch):
     refresh_tokens._refresh_provider("bedrock", catalog, summary)
 
     llama_bedrock = catalog["models"][1]["providers"][0]
-    assert llama_bedrock["input_per_1m_usd"] == 0.22  # unchanged
-    assert llama_bedrock["output_per_1m_usd"] == 0.22  # unchanged
+    assert llama_bedrock["input_per_1m_usd"] == pytest.approx(0.22)  # unchanged
+    assert llama_bedrock["output_per_1m_usd"] == pytest.approx(0.22)  # unchanged
 
 
 # --- failure handling ---

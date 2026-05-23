@@ -1,0 +1,12 @@
+runtime: "python"
+startCommand:
+  type: "stdio"
+  configSchema:
+    type: "object"
+    properties: {}
+    required: []
+  commandFunction: |-
+    () => ({
+      command: "cloudprice-mcp",
+      args: []
+    })

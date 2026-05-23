@@ -29,6 +29,7 @@ from .finops.gpu import compare_gpu_workload
 from .finops.sentinel import watch_workload
 from .finops.spot import compare_spot
 from .finops.tco import GrowthAssumptions, compare_total_cost_of_ownership
+from .finops.tokens import compare_token_pricing
 from .inventory import InventoryError, parse_dict
 from .pricing import HOURS_PER_MONTH, Cloud, load_catalog
 
@@ -661,6 +662,56 @@ async def list_tools() -> list[Tool]:
                 "additionalProperties": False,
             },
         ),
+        # --- v0.12.0 LLM token pricing ---
+        Tool(
+            name="compare_token_pricing",
+            description=(
+                "Cross-provider LLM token pricing comparison — the only FinOps tool "
+                "that returns per-1M input/output rates AND monthly cost for the same "
+                "model on each provider that hosts it (Claude on Anthropic vs Bedrock "
+                "vs Vertex; GPT on OpenAI vs Azure OpenAI; Llama on Bedrock; Gemini "
+                "on Google vs Vertex; Mistral / DeepSeek direct). Filter by model_family "
+                "('claude', 'gpt', 'gemini', 'llama', 'mistral', 'deepseek'), exact "
+                "model_id, or provider list. If monthly_input_tokens + monthly_output_tokens "
+                "are provided, ranks by total monthly USD. Otherwise ranks by per-1M "
+                "output cost (output tokens dominate most workloads). Surfaces cache_read "
+                "/ cache_write rates when published — most workloads see 30-90% input cost "
+                "reduction with proper prompt caching."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "model_family": {
+                        "type": "string",
+                        "enum": ["claude", "gpt", "gemini", "llama", "mistral", "deepseek"],
+                        "description": "Filter to one model family. Optional.",
+                    },
+                    "model_id": {
+                        "type": "string",
+                        "description": "Exact model ID (e.g. 'claude-4-sonnet', 'gpt-4o', 'gemini-2.0-flash'). Optional.",
+                    },
+                    "providers": {
+                        "type": "array",
+                        "items": {"type": "string", "enum": [
+                            "anthropic", "openai", "google", "deepseek", "mistral",
+                            "bedrock", "vertex", "azure_openai",
+                        ]},
+                        "description": "Optional list of providers to include.",
+                    },
+                    "monthly_input_tokens": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Monthly input token volume. Required to get monthly_total_usd in result.",
+                    },
+                    "monthly_output_tokens": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Monthly output token volume. Required to get monthly_total_usd in result.",
+                    },
+                },
+                "additionalProperties": False,
+            },
+        ),
         # --- v0.11.0 GPU pricing ---
         Tool(
             name="compare_gpu_workload",
@@ -1049,6 +1100,20 @@ def _handle_compare_spot(catalog, args):
     return _ok({"as_of": catalog.as_of, **result})
 
 
+def _handle_compare_token_pricing(catalog, args):  # noqa: ARG001 — catalog unused; token catalog is separate
+    try:
+        result = compare_token_pricing(
+            model_family=args.get("model_family"),
+            model_id=args.get("model_id"),
+            providers=args.get("providers"),
+            monthly_input_tokens=args.get("monthly_input_tokens"),
+            monthly_output_tokens=args.get("monthly_output_tokens"),
+        )
+    except ValueError as e:
+        return _err(f"compare_token_pricing: {e}")
+    return _ok(result)
+
+
 def _handle_compare_gpu_workload(catalog, args):
     gpu_type = args.get("gpu_type", "")
     gpu_count = int(args.get("gpu_count", 1))
@@ -1152,6 +1217,8 @@ _TOOL_HANDLERS = {
     "compare_carbon_footprint": _handle_compare_carbon_footprint,
     # v0.11.0 GPU pricing
     "compare_gpu_workload": _handle_compare_gpu_workload,
+    # v0.12.0 LLM token pricing
+    "compare_token_pricing": _handle_compare_token_pricing,
 }
 
 

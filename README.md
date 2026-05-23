@@ -171,8 +171,9 @@ The bundled catalog is refreshed every Sunday by a GitHub Action that hits each 
 - **Azure** — [Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices) (public, no auth)
 - **OCI** — [Public pricing API](https://apexapps.oracle.com/pls/apex/cetools/api/v1/products/) (public, no auth)
 - **GCP** — [Cloud Billing Catalog API](https://cloud.google.com/billing/docs/reference/rest/v1/services.skus) (via API key — `GCP_API_KEY` env var). Added in v0.8.0
+- **Bedrock LLM token prices** — [AWS Pricing API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-getting-started.html) `AmazonBedrock` service code (via boto3, same OIDC role). Added in v0.15.0 — refreshes input/output token rates for every Bedrock-hosted model we track (Claude 4 Opus/Sonnet, Claude 3/3.5 Haiku, Llama 3.1/3.3, Mistral Large 2, DeepSeek R1)
 
-Each refresh writes a **dated snapshot** to `src/cloudprice_mcp/data/prices/YYYY-MM-DD.json` — every JSON ever published lives in the repo. The history archive is MIT-licensed and grows with every release.
+Each refresh writes a **dated snapshot** to `src/cloudprice_mcp/data/prices/YYYY-MM-DD.json` and `src/cloudprice_mcp/data/token_prices/YYYY-MM-DD.json` — every JSON ever published lives in the repo. The history archive is MIT-licensed and grows with every release.
 
 Every tool result includes the catalog's `as_of` field so you know exactly which prices were used.
 

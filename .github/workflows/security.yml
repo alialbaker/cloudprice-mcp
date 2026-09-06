@@ -30,6 +30,9 @@ jobs:
       # Dependabot keeps these SHAs current - see .github/dependabot.yml.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Do not leave GITHUB_TOKEN in .git/config; it can leak
+          # through uploaded artifacts (zizmor: artipacked).
+          persist-credentials: false
           # Full history so gitleaks can scan past commits, not just the tip.
           fetch-depth: 0
 
@@ -51,6 +54,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Do not leave GITHUB_TOKEN in .git/config; it can leak
+          # through uploaded artifacts (zizmor: artipacked).
+          persist-credentials: false
 
       # zizmor is static analysis for the workflows themselves: template
       # injection, credential leaks, over-broad permissions, unpinned actions.
@@ -67,6 +74,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Do not leave GITHUB_TOKEN in .git/config; it can leak
+          # through uploaded artifacts (zizmor: artipacked).
+          persist-credentials: false
 
       - name: Checkov
         uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf # v12.1347.0

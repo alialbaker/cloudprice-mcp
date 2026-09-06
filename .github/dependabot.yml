@@ -25,8 +25,10 @@ updates:
     commit-message:
       prefix: "chore(deps)"
     cooldown:
-      default-days: 5
-      semver-major-days: 14
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 7
     groups:
       # One PR for routine bumps instead of five separate ones. Majors stay
       # separate so they get read properly.
@@ -48,11 +50,13 @@ updates:
     commit-message:
       prefix: "chore(actions)"
     cooldown:
-      # Longer than the default. A compromised action executes inside CI with
+      # Longer than for packages. A compromised action executes inside CI with
       # access to secrets, so waiting for the ecosystem to notice is worth more
       # here than being current by a few days.
-      default-days: 7
-      semver-major-days: 14
+      default-days: 14
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 14
     groups:
       actions:
         patterns: ["*"]

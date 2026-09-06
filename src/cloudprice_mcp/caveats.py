@@ -21,9 +21,9 @@ context for the user but don't change recommendations.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import resources
-from typing import Callable
 
 from .inventory import WorkloadInventory
 

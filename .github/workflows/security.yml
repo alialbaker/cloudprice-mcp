@@ -135,7 +135,7 @@ jobs:
 
       - name: Publish Checkov findings to code scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@486fec2a3ea2626afcd8c7e9208b4f515078dd7e # v2.26.4
+        uses: github/codeql-action/upload-sarif@486fec2a3ea2626afcd8c7e9208b4f515078dd7e # codeql-bundle-v2.26.4
         with:
           sarif_file: checkov.sarif
           category: checkov

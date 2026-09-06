@@ -33,8 +33,8 @@ from ..pricing import Cloud, PriceCatalog
 from .migration import (
     _compute_storage_cost,
     _database_cost,
-    _internet_egress_cost,
     _inter_region_egress_cost,
+    _internet_egress_cost,
     _object_storage_cost,
 )
 

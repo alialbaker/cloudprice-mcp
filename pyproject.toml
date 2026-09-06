@@ -50,6 +50,28 @@ packages = ["src/cloudprice_mcp"]
 line-length = 100
 target-version = "py310"
 
+[tool.ruff.lint]
+# CI runs ruff as a gate, so the rule set has to reflect decisions actually
+# made in this codebase rather than every default preference. Each of these is
+# ignored deliberately; none is ignored because it was inconvenient.
+ignore = [
+  # date.today() is correct here. The price catalogue is dated in local terms
+  # and compared against date-only snapshot filenames; forcing timezone-aware
+  # datetimes would change what "today's prices" means.
+  "DTZ011",
+  # subprocess.run without check= is intentional in the refresh scripts and the
+  # Lambda builder: they inspect returncode themselves and report a useful
+  # message. Adding check=True would replace that with a raw CalledProcessError.
+  "PLW1510",
+  # Catching broad exceptions is deliberate at tool boundaries. A tool returns
+  # {"error": ...} so the model can report what broke; letting it raise gives
+  # the caller an opaque failure instead.
+  "BLE001",
+  # Style preferences that do not change behaviour and are not worth churning
+  # working code over.
+  "ISC004", "PERF102", "SIM102", "PIE810", "UP031",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

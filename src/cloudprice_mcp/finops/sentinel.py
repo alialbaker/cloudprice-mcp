@@ -44,7 +44,7 @@ from typing import Any
 
 from ..inventory import WorkloadInventory
 from ..pricing import Cloud, PriceCatalog
-from .migration import _total_monthly_for_cloud  # noqa: PLC2701 — intentional internal reuse
+from .migration import _total_monthly_for_cloud
 
 ALL_CLOUDS: tuple[Cloud, ...] = ("aws", "azure", "gcp", "oci")
 
@@ -68,7 +68,7 @@ class WatchBaseline:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "WatchBaseline":
+    def from_dict(cls, d: dict[str, Any]) -> WatchBaseline:
         return cls(
             as_of=d["as_of"],
             catalog_as_of=d["catalog_as_of"],

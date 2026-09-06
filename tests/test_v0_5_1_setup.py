@@ -98,7 +98,7 @@ def test_print_config_no_targets_returns_error(capsys):
     args = _ns(print_config=True)
     # Patch detect_installed temporarily
     orig = _clients.detect_installed
-    _clients.detect_installed = lambda: []
+    _clients.detect_installed = list
     try:
         rc = setup_cmd._print_config_command(args)
     finally:
@@ -190,7 +190,7 @@ def test_run_setup_yes_preserves_existing_keys_end_to_end(tmp_path, monkeypatch)
 
 def test_run_setup_no_targets_returns_error(monkeypatch, capsys):
     """No --client and no detected clients → exit 1 with clear message."""
-    monkeypatch.setattr(clients, "detect_installed", lambda: [])
+    monkeypatch.setattr(clients, "detect_installed", list)
     rc = setup_cmd.run_setup(_ns())
     assert rc == 1
     err = capsys.readouterr().err

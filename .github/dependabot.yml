@@ -1,0 +1,62 @@
+# Dependabot configuration.
+#
+# Two things run here and they are different:
+#   - SECURITY updates  (repo setting, not this file) open immediately when a
+#     dependency has a known CVE. Never delayed.
+#   - VERSION updates   (this file) open for routine new releases.
+#
+# Since July 2026 version updates wait out a 3-day cooldown by default: a new
+# release is a common entry point for a supply-chain attack, and a short delay
+# lets the community catch a poisoned publish before it reaches you. The
+# windows below are set explicitly rather than relying on the default, and are
+# longer for Actions because a bad action runs with repository credentials.
+
+version: 2
+updates:
+
+  # Python dependencies.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "python"]
+    commit-message:
+      prefix: "chore(deps)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 7
+    groups:
+      # One PR for routine bumps instead of five separate ones. Majors stay
+      # separate so they get read properly.
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions. Every action in this repo is pinned to a full commit SHA
+  # rather than a tag, because a tag is mutable - in March 2026 attackers
+  # force-pushed 75 of 76 trivy-action tags and exfiltrated secrets from every
+  # pipeline that used one. Dependabot understands SHA pins: it bumps the SHA
+  # and rewrites the trailing version comment, so pinning does not mean going
+  # stale. This block is what keeps that true.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels: ["dependencies", "github-actions", "security"]
+    commit-message:
+      prefix: "chore(actions)"
+    cooldown:
+      # Longer than for packages. A compromised action executes inside CI with
+      # access to secrets, so waiting for the ecosystem to notice is worth more
+      # here than being current by a few days.
+      default-days: 14
+      semver-major-days: 30
+      semver-minor-days: 14
+      semver-patch-days: 14
+    groups:
+      actions:
+        patterns: ["*"]

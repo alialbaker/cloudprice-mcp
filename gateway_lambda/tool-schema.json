@@ -1,0 +1,1948 @@
+[
+  {
+    "name": "get_aws_price",
+    "description": "Look up the on-demand Linux hourly + monthly price for an AWS EC2 instance type in us-east-1. Returns vCPUs, memory, hourly USD, and monthly USD (730 hours). For multi-cloud comparisons including OCI, Azure, and GCP, use compare_clouds instead.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "instance_type": {
+          "type": "string",
+          "description": "EC2 instance type, e.g. 't3.medium'. Available: c5.2xlarge, c5.large, c5.xlarge, g4dn.xlarge, g5.xlarge, g6.xlarge, g6e.xlarge, m5.2xlarge, m5.4xlarge, m5.large, m5.xlarge, p3.2xlarge, p4d.24xlarge, p5.48xlarge, r5.2xlarge, r5.large, r5.xlarge, t3.2xlarge, t3.large, t3.medium, t3.micro, t3.small, t3.xlarge"
+        }
+      },
+      "required": [
+        "instance_type"
+      ]
+    }
+  },
+  {
+    "name": "get_azure_price",
+    "description": "Look up the on-demand Linux hourly + monthly price for an Azure VM size in eastus. Returns vCPUs, memory, hourly USD, and monthly USD.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "vm_size": {
+          "type": "string",
+          "description": "Azure VM size, e.g. 'D4s_v5'. Available: B1s, B2ms, B2s, B4ms, D16s_v5, D2s_v5, D4s_v5, D8s_v5, E2s_v5, E4s_v5, E8s_v5, F2s_v2, F4s_v2, F8s_v2, NC24ads_A100_v4, NC40ads_H100_v5, NC4as_T4_v3, ND96asr_v4, ND96isr_H100_v5, NV6ads_A10_v5"
+        }
+      },
+      "required": [
+        "vm_size"
+      ]
+    }
+  },
+  {
+    "name": "get_gcp_price",
+    "description": "Look up the on-demand Linux hourly + monthly price for a GCP Compute Engine machine type in us-east1. Returns vCPUs, memory, hourly USD, and monthly USD.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "machine_type": {
+          "type": "string",
+          "description": "GCP machine type, e.g. 'e2-standard-4'. Available: a2-highgpu-1g, a2-highgpu-8g, a2-ultragpu-1g, a3-highgpu-8g, c2-standard-4, c2-standard-8, e2-medium, e2-micro, e2-small, e2-standard-16, e2-standard-2, e2-standard-4, e2-standard-8, g2-standard-4, n1-standard-4+t4, n2-highcpu-4, n2-highmem-2, n2-highmem-4, n2-standard-2, n2-standard-4, n2-standard-8"
+        }
+      },
+      "required": [
+        "machine_type"
+      ]
+    }
+  },
+  {
+    "name": "compare_clouds",
+    "description": "Find the cheapest equivalent VM across AWS, Azure, GCP, and OCI for a single target spec (vCPUs and memory). Returns the best-fit SKU per cloud sorted by monthly cost, plus the absolute and percent savings of the cheapest vs the most expensive option. OCI A1 Always Free is included \u2014 for specs that fit within 4 OCPU + 24 GB Arm, OCI returns $0/mo (real perpetual free tier, not a quirk).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "vcpus": {
+          "type": "integer",
+          "description": "(min 1)"
+        },
+        "memory_gb": {
+          "type": "number",
+          "description": "(min 0.5)"
+        }
+      },
+      "required": [
+        "vcpus",
+        "memory_gb"
+      ]
+    }
+  },
+  {
+    "name": "compare_compute_inventory",
+    "description": "Bulk-compare a list of compute workloads across AWS, Azure, GCP, and OCI. Each row is independently sized to the cheapest VM that meets its vCPU/memory spec on each cloud, multiplied by quantity and hours_per_month. Optional os_disk_gb adds attached storage cost. Returns per-row matches, per-cloud totals, and the cheapest cloud overall. Useful for sizing-sheet style inputs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "workloads": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label for this row, e.g. 'web-tier-1'"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "hours_per_month": {
+                "type": "integer",
+                "description": "(default 730; min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "Optional grouping label (e.g. Web/App/DB)"
+              },
+              "group": {
+                "type": "string",
+                "description": "Optional sub-grouping label"
+              },
+              "os_disk_gb": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "os_disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "os_disk_snapshot_count": {
+                "type": "integer",
+                "description": "Number of OS-disk snapshots retained. Each priced at the cloud's snapshot per-GB rate \u00d7 disk size \u00d7 instance quantity. (default 0; min 0)"
+              },
+              "os_disk_snapshot_incremental_factor": {
+                "type": "number",
+                "description": "Multiplier on OS-disk snapshot upper-bound cost. 1.0 = full, 0.3 = typical incremental, 0.0 = exclude. Defaults to 1.0. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          }
+        }
+      },
+      "required": [
+        "workloads"
+      ]
+    }
+  },
+  {
+    "name": "compare_storage_inventory",
+    "description": "Bulk-compare a list of block-storage volumes across AWS, Azure, GCP, and OCI. Each row picks the cheapest SKU matching its disk_type (ssd or hdd) on each cloud, then prices it at capacity_gb \u00d7 quantity. Returns per-row matches, per-cloud totals, and cheapest cloud. IOPS and throughput are accepted but not used for SKU matching. Snapshot pricing is upper-bound (real-world incremental snapshots cost less).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label for this volume, e.g. 'db-data-1'"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "tier": {
+                "type": "string"
+              },
+              "group": {
+                "type": "string"
+              },
+              "iops": {
+                "type": "integer",
+                "description": "Carried as metadata; not used for SKU matching in v0.2 (min 0)"
+              },
+              "throughput_mbs": {
+                "type": "number",
+                "description": "Carried as metadata; not used for SKU matching in v0.2 (min 0)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "Number of snapshots retained. Priced at the cloud's snapshot per-GB rate \u00d7 capacity \u00d7 volume quantity. (default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "Multiplier on the upper-bound snapshot cost. 1.0 = full upper-bound (each snapshot full capacity). 0.3 = typical real-world incremental dedup (~30%). 0.0 = exclude snapshots from total. Defaults to 1.0 for backward compatibility. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          }
+        }
+      },
+      "required": [
+        "volumes"
+      ]
+    }
+  },
+  {
+    "name": "compare_egress",
+    "description": "Compare data-transfer costs across AWS, Azure, GCP, and OCI for a given monthly volume. Two directions supported: 'out_to_internet' (tiered pricing with free-tier credits \u2014 AWS/Azure 100 GB, OCI 10 TB free) and 'inter_region' (flat rate for cross-region transfer within the same cloud). At 50 TB/mo of internet egress OCI is ~12\u00d7 cheaper than the hyperscalers \u2014 a real competitive moat for content/CDN workloads. VPC peering is NOT yet modeled.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "transfers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label, e.g. 'api-egress' or 'cdn-bandwidth'"
+              },
+              "gb_per_month": {
+                "type": "number",
+                "description": "Data transfer volume in GB/month (min 0)"
+              },
+              "direction": {
+                "type": "string",
+                "description": "out_to_internet: outbound to public internet (honors free tier \u2014 AWS/Azure 100 GB, OCI 10 TB). inter_region: cross-region transfer within the same cloud (no free tier, flat rate ~$0.02/GB on hyperscalers, $0.0085 on OCI). (one of: out_to_internet, inter_region; default out_to_internet)"
+              },
+              "tier_label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "gb_per_month"
+            ]
+          }
+        }
+      },
+      "required": [
+        "transfers"
+      ]
+    }
+  },
+  {
+    "name": "compare_object_storage",
+    "description": "Compare object-storage pricing across AWS S3, Azure Blob, GCP Cloud Storage, and OCI Object Storage. Each request specifies capacity_gb and access tier (hot/cool/archive); the tool picks the cheapest SKU per cloud at that tier. OCI offers 20 GB Always Free in the 'hot' tier \u2014 surfaced when capacity fits. NOTE: egress, request, and retrieval costs are not modeled (often the actual hidden killer). v0.3 preview \u2014 placeholder pricing, verify before relying on numbers.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label for this bucket/container, e.g. 'app-uploads'"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "Access tier: 'hot' = frequent (eg S3 Standard), 'cool' = infrequent, 'archive' = deep archive (eg Glacier) (one of: hot, cool, archive; default hot)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "tier_label": {
+                "type": "string",
+                "description": "Optional grouping label"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          }
+        }
+      },
+      "required": [
+        "volumes"
+      ]
+    }
+  },
+  {
+    "name": "compare_postgres_database",
+    "description": "Compare managed PostgreSQL pricing across AWS RDS, Azure Database for PostgreSQL, GCP Cloud SQL, and OCI Database with PostgreSQL. Each request specifies vCPUs, memory, and storage_gb; the tool picks the cheapest matching SKU per cloud and totals compute + storage. v0.3 preview \u2014 pricing is bundled placeholder data; verify against current cloud pricing pages before relying on numbers.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label for this database, e.g. 'orders-prod'"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "storage_gb": {
+                "type": "number",
+                "description": "Persistent storage size in GB (default 0; min 0)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "hours_per_month": {
+                "type": "integer",
+                "description": "(default 730; min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "Optional grouping label (e.g. Prod/Stage/Dev)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          }
+        }
+      },
+      "required": [
+        "databases"
+      ]
+    }
+  },
+  {
+    "name": "compare_workload",
+    "description": "Combined compute + block-storage compare across AWS, Azure, GCP, and OCI. Pass a compute list and a storage list (either may be empty). Returns nested per-row breakdowns plus combined per-cloud totals and the overall cheapest cloud. Mirrors the structure of a two-sheet sizing workbook (compute BoM + storage BoM). Optional `commitment` parameter estimates 1-year or 3-year Reserved Instance / Savings Plan / Committed Use discount on compute (storage stays at on-demand). For object storage, use compare_object_storage. For managed databases, use compare_postgres_database.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "compute": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label for this row, e.g. 'web-tier-1'"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "hours_per_month": {
+                "type": "integer",
+                "description": "(default 730; min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "Optional grouping label (e.g. Web/App/DB)"
+              },
+              "group": {
+                "type": "string",
+                "description": "Optional sub-grouping label"
+              },
+              "os_disk_gb": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "os_disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "os_disk_snapshot_count": {
+                "type": "integer",
+                "description": "Number of OS-disk snapshots retained. Each priced at the cloud's snapshot per-GB rate \u00d7 disk size \u00d7 instance quantity. (default 0; min 0)"
+              },
+              "os_disk_snapshot_incremental_factor": {
+                "type": "number",
+                "description": "Multiplier on OS-disk snapshot upper-bound cost. 1.0 = full, 0.3 = typical incremental, 0.0 = exclude. Defaults to 1.0. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label for this volume, e.g. 'db-data-1'"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "tier": {
+                "type": "string"
+              },
+              "group": {
+                "type": "string"
+              },
+              "iops": {
+                "type": "integer",
+                "description": "Carried as metadata; not used for SKU matching in v0.2 (min 0)"
+              },
+              "throughput_mbs": {
+                "type": "number",
+                "description": "Carried as metadata; not used for SKU matching in v0.2 (min 0)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "Number of snapshots retained. Priced at the cloud's snapshot per-GB rate \u00d7 capacity \u00d7 volume quantity. (default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "Multiplier on the upper-bound snapshot cost. 1.0 = full upper-bound (each snapshot full capacity). 0.3 = typical real-world incremental dedup (~30%). 0.0 = exclude snapshots from total. Defaults to 1.0 for backward compatibility. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "commitment": {
+          "type": "string",
+          "description": "Compute commitment tier. 'none' = on-demand only. '1yr_no_upfront' applies a representative 30% compute discount. '3yr_partial_upfront' applies 50%. Storage and snapshots are not discounted. (one of: none, 1yr_no_upfront, 3yr_partial_upfront; default none)"
+        },
+        "multi_az": {
+          "type": "boolean",
+          "description": "If true, double compute cost on every cloud to model Multi-AZ / HA deployments (sync replicas across two zones). Storage stays at 1x because object/block storage is usually cross-AZ at base price already. (default False)"
+        }
+      }
+    }
+  },
+  {
+    "name": "assess_migration",
+    "description": "Project cross-cloud cost + payback for moving a workload away from its source cloud. Inputs: source_cloud + workload inventory (compute / storage / object_storage / databases / egress) + optional one_time data to migrate. Returns per-target monthly cost, savings %, exit egress cost, payback months, ranked recommendation by 3-year TCO, and triggered caveats (e.g., 'OCI A1.Flex is ARM \u2014 verify your AMIs'). The kind of FinOps decision that normally lives in a half-built spreadsheet \u2014 now one tool call.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "compute": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label, e.g. 'api-tier'"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "multi_az": {
+                "type": "boolean",
+                "description": "(default False)"
+              },
+              "os_disk_gb": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "os_disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "1.0 = upper-bound, 0.3 = typical real-world incremental, 0.0 = exclude. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "(default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "object_storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "(one of: hot, cool, archive; default hot)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "storage_gb": {
+                "type": "number",
+                "description": "(default 0; min 0)"
+              },
+              "engine": {
+                "type": "string",
+                "description": "(one of: postgres; default postgres)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "egress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "gb_per_month": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "direction": {
+                "type": "string",
+                "description": "(one of: out_to_internet, inter_region; default out_to_internet)"
+              }
+            },
+            "required": [
+              "name",
+              "gb_per_month"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "multi_az": {
+          "type": "boolean",
+          "description": "(default False)"
+        },
+        "one_time": {
+          "type": "object",
+          "properties": {
+            "data_to_migrate_gb": {
+              "type": "number",
+              "description": "(default 0; min 0)"
+            }
+          }
+        },
+        "source_cloud": {
+          "type": "string",
+          "description": "Cloud the workload currently runs on. (one of: aws, azure, gcp, oci)"
+        },
+        "commitment": {
+          "type": "string",
+          "description": "(one of: none, 1yr_no_upfront, 1yr_all_upfront, 3yr_no_upfront, 3yr_partial_upfront, 3yr_all_upfront; default none)"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: aws, azure, gcp, oci)"
+          },
+          "description": "Target clouds to evaluate. Default: all clouds except source_cloud."
+        }
+      },
+      "required": [
+        "source_cloud"
+      ]
+    }
+  },
+  {
+    "name": "optimize_commitment",
+    "description": "Compute per-scenario cost / savings / payback for compute commitment options (none, 1yr_no_upfront, 1yr_all_upfront, 3yr_no_upfront, 3yr_partial_upfront, 3yr_all_upfront). Returns each scenario's monthly cost, upfront, 3-year total, savings %, and payback months \u2014 plus the recommended scenario by lowest 3-year TCO. Compute-only (storage / database / object / egress are not discounted because most clouds don't offer meaningful commitments on these). Per-family RI tiers come in v0.6.x; v0.6.0 uses cloud-level conservative averages.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "compute": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label, e.g. 'api-tier'"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "multi_az": {
+                "type": "boolean",
+                "description": "(default False)"
+              },
+              "os_disk_gb": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "os_disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "1.0 = upper-bound, 0.3 = typical real-world incremental, 0.0 = exclude. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "(default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "object_storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "(one of: hot, cool, archive; default hot)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "storage_gb": {
+                "type": "number",
+                "description": "(default 0; min 0)"
+              },
+              "engine": {
+                "type": "string",
+                "description": "(one of: postgres; default postgres)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "egress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "gb_per_month": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "direction": {
+                "type": "string",
+                "description": "(one of: out_to_internet, inter_region; default out_to_internet)"
+              }
+            },
+            "required": [
+              "name",
+              "gb_per_month"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "multi_az": {
+          "type": "boolean",
+          "description": "(default False)"
+        },
+        "one_time": {
+          "type": "object",
+          "properties": {
+            "data_to_migrate_gb": {
+              "type": "number",
+              "description": "(default 0; min 0)"
+            }
+          }
+        },
+        "source_cloud": {
+          "type": "string",
+          "description": "Cloud the workload currently runs on. (one of: aws, azure, gcp, oci)"
+        },
+        "cloud": {
+          "type": "string",
+          "description": "Cloud to evaluate (default: source_cloud, then 'aws'). (one of: aws, azure, gcp, oci)"
+        },
+        "scenarios": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: none, 1yr_no_upfront, 1yr_all_upfront, 3yr_no_upfront, 3yr_partial_upfront, 3yr_all_upfront)"
+          },
+          "description": "Subset of commitment scenarios to evaluate. Default: all 6."
+        }
+      },
+      "required": [
+        "compute"
+      ]
+    }
+  },
+  {
+    "name": "compare_total_cost_of_ownership",
+    "description": "Project per-cloud per-year cost over a configurable horizon (default 3 years), with linear YoY growth assumptions for compute / storage / egress. Returns cumulative TCO per cloud, year-by-year breakdown by category, and sensitivity analysis identifying the most impactful growth variable. The kind of number that goes into board decks and budget conversations \u2014 now computed from a public catalog instead of a spreadsheet.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "compute": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label, e.g. 'api-tier'"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "multi_az": {
+                "type": "boolean",
+                "description": "(default False)"
+              },
+              "os_disk_gb": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "os_disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "1.0 = upper-bound, 0.3 = typical real-world incremental, 0.0 = exclude. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "(default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "object_storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "(one of: hot, cool, archive; default hot)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "storage_gb": {
+                "type": "number",
+                "description": "(default 0; min 0)"
+              },
+              "engine": {
+                "type": "string",
+                "description": "(one of: postgres; default postgres)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "egress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "gb_per_month": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "direction": {
+                "type": "string",
+                "description": "(one of: out_to_internet, inter_region; default out_to_internet)"
+              }
+            },
+            "required": [
+              "name",
+              "gb_per_month"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "multi_az": {
+          "type": "boolean",
+          "description": "(default False)"
+        },
+        "one_time": {
+          "type": "object",
+          "properties": {
+            "data_to_migrate_gb": {
+              "type": "number",
+              "description": "(default 0; min 0)"
+            }
+          }
+        },
+        "commitment": {
+          "type": "string",
+          "description": "(one of: none, 1yr_no_upfront, 1yr_all_upfront, 3yr_no_upfront, 3yr_partial_upfront, 3yr_all_upfront; default none)"
+        },
+        "horizon_years": {
+          "type": "integer",
+          "description": "Years to project (default 3 \u2014 FinOps standard). (default 3; min 1)"
+        },
+        "growth": {
+          "type": "object",
+          "properties": {
+            "compute_pct_yoy": {
+              "type": "number",
+              "description": "+0.20 means +20% YoY compute growth. (default 0.0)"
+            },
+            "storage_pct_yoy": {
+              "type": "number",
+              "description": "(default 0.0)"
+            },
+            "egress_pct_yoy": {
+              "type": "number",
+              "description": "(default 0.0)"
+            }
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: aws, azure, gcp, oci)"
+          },
+          "description": "Clouds to project. Default: all 4 clouds."
+        }
+      }
+    }
+  },
+  {
+    "name": "find_egress_arbitrage",
+    "description": "Specialized assess_migration scoped to egress patterns. Useful when a team's largest cost line is data transfer (CDN workloads, video streaming, content distribution). Returns per-target egress cost, monthly + annual savings, payback months on any one-time exit cost, and recommendation. The OCI 12\u00d7 moat is the headline finding: at 50 TB/month internet egress, OCI is roughly $340 vs $4,000+ on the hyperscalers because of OCI's 10 TB/month free tier + $0.0085/GB beyond.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source_cloud": {
+          "type": "string",
+          "description": "(one of: aws, azure, gcp, oci)"
+        },
+        "egress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "gb_per_month": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "direction": {
+                "type": "string",
+                "description": "(one of: out_to_internet, inter_region; default out_to_internet)"
+              }
+            },
+            "required": [
+              "name",
+              "gb_per_month"
+            ]
+          }
+        },
+        "one_time": {
+          "type": "object",
+          "properties": {
+            "data_to_migrate_gb": {
+              "type": "number",
+              "description": "(default 0; min 0)"
+            }
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: aws, azure, gcp, oci)"
+          }
+        }
+      },
+      "required": [
+        "source_cloud",
+        "egress"
+      ]
+    }
+  },
+  {
+    "name": "get_price_history",
+    "description": "Return the multi-cloud price history for a specific (cloud, sku). cloudprice-mcp persists every weekly auto-refresh as a dated snapshot, so this is the only FinOps tool that can answer 'what did m5.xlarge cost in May?' \u2014 neither AWS Calculator nor GCP Estimator preserves historical pricing. Returns the timeseries, total change %, and the earliest/latest data points. Useful for: validating commitment timing, spotting quiet price increases, citing audit-traceable historical numbers to a CFO.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cloud": {
+          "type": "string",
+          "description": "(one of: aws, azure, gcp, oci)"
+        },
+        "sku": {
+          "type": "string",
+          "description": "Instance type / SKU name, e.g. m5.xlarge, D2s_v5, e2-standard-2, VM.Standard.E5.Flex.1OCPU"
+        },
+        "since": {
+          "type": "string",
+          "description": "Optional ISO date (YYYY-MM-DD); restricts to snapshots on or after this date."
+        }
+      },
+      "required": [
+        "cloud",
+        "sku"
+      ]
+    }
+  },
+  {
+    "name": "list_tracked_skus",
+    "description": "List every (cloud, sku) pair present in the bundled price-history dataset, with how many weekly snapshots exist for each. Use this to discover which SKUs you can call get_price_history on, or to find the biggest-mover SKUs since a given date. Filter by cloud to scope.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cloud": {
+          "type": "string",
+          "description": "(one of: aws, azure, gcp, oci, None)"
+        },
+        "since": {
+          "type": "string",
+          "description": "Optional ISO date; only consider snapshots on or after this date."
+        }
+      }
+    }
+  },
+  {
+    "name": "generate_decision_report",
+    "description": "Generate a CFO-grade FinOps decision report in markdown. Combines assess_migration + compare_carbon_footprint into a single structured artifact the user can paste into a wiki / PR / Slack / email. Sections: executive summary, per-cloud cost table, carbon comparison (optional), the workload spec, aggregated honest_gaps, and an audit trail (package version, catalog as_of, requester, reproduce command). The 'trust' angle commercial FinOps tools can't easily replicate because their reports live in their UI; this one is markdown the user owns. Use when the question is 'we need a decision artifact a CFO can sign off on'.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "compute": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label, e.g. 'api-tier'"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "multi_az": {
+                "type": "boolean",
+                "description": "(default False)"
+              },
+              "os_disk_gb": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "os_disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "1.0 = upper-bound, 0.3 = typical real-world incremental, 0.0 = exclude. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "(default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "object_storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "(one of: hot, cool, archive; default hot)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "storage_gb": {
+                "type": "number",
+                "description": "(default 0; min 0)"
+              },
+              "engine": {
+                "type": "string",
+                "description": "(one of: postgres; default postgres)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "egress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "gb_per_month": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "direction": {
+                "type": "string",
+                "description": "(one of: out_to_internet, inter_region; default out_to_internet)"
+              }
+            },
+            "required": [
+              "name",
+              "gb_per_month"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "multi_az": {
+          "type": "boolean",
+          "description": "(default False)"
+        },
+        "one_time": {
+          "type": "object",
+          "properties": {
+            "data_to_migrate_gb": {
+              "type": "number",
+              "description": "(default 0; min 0)"
+            }
+          }
+        },
+        "source_cloud": {
+          "type": "string",
+          "description": "Cloud the workload currently runs on. (one of: aws, azure, gcp, oci)"
+        },
+        "commitment": {
+          "type": "string",
+          "description": "(one of: none, 1yr_no_upfront, 1yr_all_upfront, 3yr_no_upfront, 3yr_partial_upfront, 3yr_all_upfront; default none)"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: aws, azure, gcp, oci)"
+          },
+          "description": "Optional list of target clouds to compare against the source."
+        },
+        "include_carbon": {
+          "type": "boolean",
+          "description": "(default True)"
+        },
+        "requester": {
+          "type": "string",
+          "description": "Optional name/email for the audit trail."
+        }
+      },
+      "required": [
+        "source_cloud"
+      ]
+    }
+  },
+  {
+    "name": "detect_price_anomalies",
+    "description": "Statistical anomaly detection over the bundled price-history dataset. Compounds the v0.7.1 history archive: as snapshots accumulate weekly, this tool auto-flags unusual price moves without you having to manually inspect every SKU. Two methods, auto-selected by dataset density: percent_change (for <5 snapshots) and z_score (>=5). Sensitivities: strict (10% / z>=2.5), moderate (5% / z>=2.0, default), permissive (2% / z>=1.5). Use for 'what changed this week?' and 'anything weird across any cloud since {date}?' queries. Excellent source for weekly LinkedIn / blog content auto-generation.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "since": {
+          "type": "string",
+          "description": "ISO date \u2014 restrict to snapshots on or after this date. Optional."
+        },
+        "cloud": {
+          "type": "string",
+          "description": "Filter to one cloud. Optional. (one of: aws, azure, gcp, oci)"
+        },
+        "sensitivity": {
+          "type": "string",
+          "description": "(one of: strict, moderate, permissive; default moderate)"
+        },
+        "method": {
+          "type": "string",
+          "description": "(one of: percent_change, z_score, auto; default auto)"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "(default 25; min 1)"
+        }
+      }
+    }
+  },
+  {
+    "name": "compare_token_pricing",
+    "description": "Cross-provider LLM token pricing comparison \u2014 the only FinOps tool that returns per-1M input/output rates AND monthly cost for the same model on each provider that hosts it (Claude on Anthropic vs Bedrock vs Vertex; GPT on OpenAI vs Azure OpenAI; Llama on Bedrock; Gemini on Google vs Vertex; Mistral / DeepSeek direct). Filter by model_family ('claude', 'gpt', 'gemini', 'llama', 'mistral', 'deepseek'), exact model_id, or provider list. If monthly_input_tokens + monthly_output_tokens are provided, ranks by total monthly USD. Otherwise ranks by per-1M output cost (output tokens dominate most workloads). Surfaces cache_read / cache_write rates when published \u2014 most workloads see 30-90% input cost reduction with proper prompt caching.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "model_family": {
+          "type": "string",
+          "description": "Filter to one model family. Optional. (one of: claude, gpt, gemini, llama, mistral, deepseek)"
+        },
+        "model_id": {
+          "type": "string",
+          "description": "Exact model ID (e.g. 'claude-4-sonnet', 'gpt-4o', 'gemini-2.0-flash'). Optional."
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: anthropic, openai, google, deepseek, mistral, bedrock, vertex, azure_openai)"
+          },
+          "description": "Optional list of providers to include."
+        },
+        "monthly_input_tokens": {
+          "type": "integer",
+          "description": "Monthly input token volume. Required to get monthly_total_usd in result. (min 0)"
+        },
+        "monthly_output_tokens": {
+          "type": "integer",
+          "description": "Monthly output token volume. Required to get monthly_total_usd in result. (min 0)"
+        }
+      }
+    }
+  },
+  {
+    "name": "export_focus",
+    "description": "Emit FOCUS 1.3-shaped rows from any pricing query, ready to import into Vantage Custom Providers / Microsoft Cost Mgmt / OpenCost / Apptio / any FinOps tool that consumes the FinOps Foundation's open billing schema (ratified Dec 2025). The rows populate the list-price columns (ListCost, ListUnitPrice, PricingQuantity, etc.) and leave billed/contracted/effective columns NULL since cloudprice produces projections, not real bills \u2014 that's explicitly documented in the result's notes field. Use this when the user says 'export my comparison to FOCUS', 'send this to Vantage', 'plug this into our FinOps stack'. Supports query_kind: compute_workload (calls assess_migration), token_pricing (compare_token_pricing), extended_model_lookup (lookup_extended_model_pricing). Format is 'json' (default) or 'csv'.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query_kind": {
+          "type": "string",
+          "description": "Which underlying pricing tool to run before FOCUS-shaping. (one of: compute_workload, token_pricing, extended_model_lookup)"
+        },
+        "format": {
+          "type": "string",
+          "description": "(one of: json, csv; default json)"
+        },
+        "billing_period_start": {
+          "type": "string",
+          "description": "ISO date YYYY-MM-DD for the synthetic billing period start. Defaults to current month."
+        },
+        "source_cloud": {
+          "type": "string",
+          "description": "(one of: aws, azure, gcp, oci)"
+        },
+        "compute": {
+          "type": "array"
+        },
+        "storage": {
+          "type": "array"
+        },
+        "object_storage": {
+          "type": "array"
+        },
+        "egress": {
+          "type": "array"
+        },
+        "databases": {
+          "type": "array"
+        },
+        "commitment": {
+          "type": "string"
+        },
+        "multi_az": {
+          "type": "boolean"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: aws, azure, gcp, oci)"
+          }
+        },
+        "model_family": {
+          "type": "string",
+          "description": "(one of: claude, gpt, gemini, llama, mistral, deepseek)"
+        },
+        "model_id": {
+          "type": "string"
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "monthly_input_tokens": {
+          "type": "integer",
+          "description": "(min 0)"
+        },
+        "monthly_output_tokens": {
+          "type": "integer",
+          "description": "(min 0)"
+        },
+        "query": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "description": "(one of: chat, completion, responses)"
+        },
+        "source": {
+          "type": "string",
+          "description": "(one of: litellm, openrouter)"
+        }
+      },
+      "required": [
+        "query_kind"
+      ]
+    }
+  },
+  {
+    "name": "lookup_extended_model_pricing",
+    "description": "Search the extended LLM catalog (~2300 model/provider combinations auto-ingested weekly from two upstreams: LiteLLM's public JSON (direct-provider retail prices for Together AI, Fireworks, Replicate, Groq, Cerebras, Perplexity, regional Bedrock/Azure variants, etc.) and OpenRouter's /api/v1/models (routed prices including OpenRouter's margin). Every row tagged source='litellm' or source='openrouter' so callers can compare direct vs routed pricing for the same model. Complements compare_token_pricing (hand-curated, 19 vetted models). Use this when the user asks about: (a) a model or provider compare_token_pricing doesn't know \u2014 'cheapest place to host Llama 3.1 405B', 'Together AI pricing', 'what Groq charges for Mixtral' \u2014 or (b) whether OpenRouter routing is cheaper or more expensive than going direct to Bedrock/Anthropic/OpenAI ('does OpenRouter add margin for Claude 3 Haiku?').",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Case-insensitive substring matched against the model ID. E.g. 'llama-3.1-70b' matches every Llama 3.1 70B variant on every host."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Filter to one provider: 'bedrock', 'fireworks_ai', 'together_ai', 'groq', 'perplexity', 'replicate', 'openrouter' (for routed prices), etc."
+        },
+        "mode": {
+          "type": "string",
+          "description": "Mode filter. Default: any (catalog already excludes embedding/image/audio). (one of: chat, completion, responses)"
+        },
+        "max_context_tokens": {
+          "type": "integer",
+          "description": "Skip models with smaller context. Useful for 'cheapest models that support 200K+ context'. (min 1)"
+        },
+        "monthly_input_tokens": {
+          "type": "integer",
+          "description": "(min 0)"
+        },
+        "monthly_output_tokens": {
+          "type": "integer",
+          "description": "(min 0)"
+        },
+        "source": {
+          "type": "string",
+          "description": "Filter to one upstream source. 'litellm' = direct-provider retail prices. 'openrouter' = OpenRouter routed prices (includes their margin). Default: both \u2014 useful for cross-source comparison. (one of: litellm, openrouter)"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "(default 25; min 1)"
+        }
+      }
+    }
+  },
+  {
+    "name": "compare_gpu_workload",
+    "description": "Cross-cloud GPU pricing comparison \u2014 finds the cheapest matching SKU per cloud for a (gpu_type, gpu_count) request. Supports NVIDIA T4 / A10 / A10G / L4 / L40S / V100 / A100 / H100 across AWS / Azure / GCP / OCI. Returns absolute hourly cost AND $/GPU/h so users can see both the absolute winner and the per-GPU packaging-efficiency winner (they're often different clouds). Surfaces over-provisioning when the only matching SKU has more GPUs than requested (e.g., asking for 1 H100 but only bare-metal 8x SKUs are available). Use for AI/ML workload pricing decisions \u2014 training, inference, fine-tuning.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "gpu_type": {
+          "type": "string",
+          "description": "GPU family name, e.g. 'A100', 'H100', 'L4', 'L40S', 'T4', 'A10', 'A10G', 'V100'. Case-insensitive."
+        },
+        "gpu_count": {
+          "type": "integer",
+          "description": "(default 1; min 1)"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: aws, azure, gcp, oci)"
+          },
+          "description": "Optional list of clouds to compare; default all 4."
+        }
+      },
+      "required": [
+        "gpu_type"
+      ]
+    }
+  },
+  {
+    "name": "compare_carbon_footprint",
+    "description": "Multi-cloud carbon footprint comparison \u2014 the only FinOps tool that returns both USD cost AND kg CO2e/month side-by-side. For a given vCPU + memory shape (and optional quantity), returns per-cloud best-matching SKU + monthly cost + grid-based kg CO2e + market-based residual kg CO2e (after the cloud's published renewable matching) + power class (x86 vs ARM). Ranked cheapest-carbon-first. Surfaces tradeoffs (AWS/Azure 100% renewable matched, GCP ~64% CFE, OCI unmatched outside EU). Use when the user cares about sustainability, Green FinOps, or carbon-cost dual optimization.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "vcpus": {
+          "type": "integer",
+          "description": "(min 1)"
+        },
+        "memory_gb": {
+          "type": "number",
+          "description": "(min 0.5)"
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "(default 1; min 1)"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: aws, azure, gcp, oci)"
+          },
+          "description": "Optional list of clouds to compare; default all 4."
+        }
+      },
+      "required": [
+        "vcpus",
+        "memory_gb"
+      ]
+    }
+  },
+  {
+    "name": "watch_workload",
+    "description": "Cost Drift Sentinel \u2014 turns cloudprice from query tool into agent capability. First call (no baseline): captures the current per-cloud monthly cost for the workload as a baseline JSON the caller persists. Subsequent calls (with the saved baseline): compute today's cost, compare to baseline, return a structured drift report with per-cloud delta + SKU-level attribution from the price-history dataset. Stateless \u2014 no database, no server-side storage. Drop the baseline JSON into a git repo or any durable location. Designed for scheduled agents (GitHub Actions cron, Claude Code's autonomous mode, etc.) to detect 'has this cost moved since I signed off?' between runs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "compute": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Friendly label, e.g. 'api-tier'"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "multi_az": {
+                "type": "boolean",
+                "description": "(default False)"
+              },
+              "os_disk_gb": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "os_disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "1.0 = upper-bound, 0.3 = typical real-world incremental, 0.0 = exclude. (default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "disk_type": {
+                "type": "string",
+                "description": "(one of: ssd, hdd; default ssd)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              },
+              "snapshot_count": {
+                "type": "integer",
+                "description": "(default 0; min 0)"
+              },
+              "snapshot_incremental_factor": {
+                "type": "number",
+                "description": "(default 1.0; min 0; max 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "object_storage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "capacity_gb": {
+                "type": "number",
+                "description": "(min 1)"
+              },
+              "tier": {
+                "type": "string",
+                "description": "(one of: hot, cool, archive; default hot)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "capacity_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "databases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "vcpus": {
+                "type": "integer",
+                "description": "(min 1)"
+              },
+              "memory_gb": {
+                "type": "number",
+                "description": "(min 0.5)"
+              },
+              "storage_gb": {
+                "type": "number",
+                "description": "(default 0; min 0)"
+              },
+              "engine": {
+                "type": "string",
+                "description": "(one of: postgres; default postgres)"
+              },
+              "quantity": {
+                "type": "integer",
+                "description": "(default 1; min 1)"
+              }
+            },
+            "required": [
+              "name",
+              "vcpus",
+              "memory_gb"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "egress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "gb_per_month": {
+                "type": "number",
+                "description": "(min 0)"
+              },
+              "direction": {
+                "type": "string",
+                "description": "(one of: out_to_internet, inter_region; default out_to_internet)"
+              }
+            },
+            "required": [
+              "name",
+              "gb_per_month"
+            ]
+          },
+          "description": "(default [])"
+        },
+        "multi_az": {
+          "type": "boolean",
+          "description": "(default False)"
+        },
+        "one_time": {
+          "type": "object",
+          "properties": {
+            "data_to_migrate_gb": {
+              "type": "number",
+              "description": "(default 0; min 0)"
+            }
+          }
+        },
+        "source_cloud": {
+          "type": "string",
+          "description": "Cloud the workload currently runs on. (one of: aws, azure, gcp, oci)"
+        },
+        "commitment": {
+          "type": "string",
+          "description": "(one of: none, 1yr_no_upfront, 1yr_all_upfront, 3yr_no_upfront, 3yr_partial_upfront, 3yr_all_upfront; default none)"
+        },
+        "baseline": {
+          "type": "object",
+          "description": "Previously returned baseline JSON. Pass null on first call to capture a fresh baseline; pass it back on subsequent calls to detect drift."
+        },
+        "alert_threshold_pct": {
+          "type": "number",
+          "description": "Drift % that triggers an alert. Defaults to 5%. (default 5.0; min 0)"
+        }
+      },
+      "required": [
+        "source_cloud"
+      ]
+    }
+  },
+  {
+    "name": "compare_spot",
+    "description": "Compare spot / preemptible pricing for a vCPU + memory shape across AWS, Azure, GCP, and OCI. Returns per-cloud best-matching SKU + on-demand cost + spot cost + savings + eviction characteristics, ranked cheapest-first. The only multi-cloud spot comparison anyone publishes openly \u2014 AWS Spot vs Azure Spot vs GCP Spot VMs vs OCI Preemptible all use different pricing + eviction models, and this tool surfaces every one of them with their tradeoffs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "vcpus": {
+          "type": "integer",
+          "description": "(min 1)"
+        },
+        "memory_gb": {
+          "type": "number",
+          "description": "(min 0.5)"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "(one of: aws, azure, gcp, oci)"
+          },
+          "description": "Optional list of clouds to compare; default all 4."
+        }
+      },
+      "required": [
+        "vcpus",
+        "memory_gb"
+      ]
+    }
+  }
+]

@@ -60,6 +60,9 @@ jobs:
   actions-lint:
     name: Workflow audit (zizmor)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # SARIF upload to code scanning
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,7 +75,11 @@ jobs:
       # The CI config is part of the attack surface, not just the app.
       - uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3
         with:
-          advanced-security: false
+          # Uploads SARIF to GitHub code scanning, which is what puts findings
+          # inline on the diff instead of leaving them as run annotations.
+          # Free on public repositories; private repos need the paid Code
+          # Security product, so this stays false there.
+          advanced-security: true
           persona: regular
           # Fail the build on medium and above; report low/help findings
           # without blocking. The remaining low-severity items are inline
@@ -84,6 +91,9 @@ jobs:
   iac:
     name: Infrastructure scan (Checkov + Trivy)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # SARIF upload to code scanning
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,7 +111,8 @@ jobs:
           # Start non-blocking so the first run inventories what is wrong
           # rather than blocking every PR on day one.
           soft_fail: true
-          output_format: cli
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
 
       # tfsec is deprecated - its engine now lives in Trivy, so `trivy config`
       # is the current way to get that ruleset.
@@ -121,3 +132,10 @@ jobs:
           scanners: vuln,secret
           severity: HIGH,CRITICAL
           exit-code: "0"
+
+      - name: Publish Checkov findings to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@486fec2a3ea2626afcd8c7e9208b4f515078dd7e # v2.26.4
+        with:
+          sarif_file: checkov.sarif
+          category: checkov

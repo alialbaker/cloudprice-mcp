@@ -1,0 +1,100 @@
+name: Security checks
+
+# Runs on every PR and on pushes to main. All tooling here is open source and
+# free on private repositories - GitHub's own secret scanning and CodeQL are
+# paid for private repos (GitHub Secret Protection / Code Security), so these
+# are the equivalents that cost nothing.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege by default. Individual jobs raise this only if they must.
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      # Every action is pinned to a full commit SHA, not a tag. A tag is
+      # mutable: in March 2026 attackers force-pushed 75 of 76 trivy-action
+      # tags and exfiltrated secrets from every pipeline that used one.
+      # Dependabot keeps these SHAs current - see .github/dependabot.yml.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history so gitleaks can scan past commits, not just the tip.
+          fetch-depth: 0
+
+      # The gitleaks binary rather than gitleaks-action: the action requires a
+      # paid licence for organisations, the binary does not.
+      - name: Install gitleaks
+        run: |
+          VERSION=8.30.1
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Scan repository history
+        run: gitleaks detect --source . --redact --verbose --no-banner
+
+  actions-lint:
+    name: Workflow audit (zizmor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # zizmor is static analysis for the workflows themselves: template
+      # injection, credential leaks, over-broad permissions, unpinned actions.
+      # The CI config is part of the attack surface, not just the app.
+      - uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3
+        with:
+          # Report findings without failing the build to begin with. Flip to
+          # a failing threshold once the existing findings are cleared.
+          advanced-security: false
+          persona: regular
+
+  iac:
+    name: Infrastructure scan (Checkov + Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf # v12.1347.0
+        with:
+          # Scan every .tf in the repo, not one directory - this repo has
+          # Terraform in more than one place.
+          directory: .
+          framework: terraform
+          # Start non-blocking so the first run inventories what is wrong
+          # rather than blocking every PR on day one.
+          soft_fail: true
+          output_format: cli
+
+      # tfsec is deprecated - its engine now lives in Trivy, so `trivy config`
+      # is the current way to get that ruleset.
+      - name: Trivy config scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+      - name: Trivy dependency scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          exit-code: "0"

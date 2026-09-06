@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Python dependencies from pyproject.toml.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for routine bumps rather than five separate ones.
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions. This is the important one: actions are pinned to
+  # full commit SHAs so a force-pushed tag cannot change what runs
+  # (see the trivy-action compromise, March 2026). Dependabot
+  # understands SHA pins - it bumps the SHA and updates the trailing
+  # version comment - so pinning does not mean going stale.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]

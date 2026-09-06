@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Python dependencies from pyproject.toml
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for routine bumps instead of five separate ones
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions used by your workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]

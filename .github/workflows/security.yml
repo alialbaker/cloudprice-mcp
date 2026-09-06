@@ -38,11 +38,19 @@ jobs:
 
       # The gitleaks binary rather than gitleaks-action: the action requires a
       # paid licence for organisations, the binary does not.
+      # Pinned version AND verified checksum. Pulling a tool into CI without
+      # verifying it is the same class of problem as an unpinned action -
+      # zizmor flags it as adhoc-packages. The hash is from the project's
+      # published checksums.txt for this exact release.
       - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
         run: |
-          VERSION=8.30.1
+          set -euo pipefail
           curl -sSfL -o gitleaks.tar.gz \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
           sudo mv gitleaks /usr/local/bin/
 
@@ -64,10 +72,14 @@ jobs:
       # The CI config is part of the attack surface, not just the app.
       - uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3
         with:
-          # Report findings without failing the build to begin with. Flip to
-          # a failing threshold once the existing findings are cleared.
           advanced-security: false
           persona: regular
+          # Fail the build on medium and above; report low/help findings
+          # without blocking. The remaining low-severity items are inline
+          # `pip install` calls in the existing cloud deploy workflows -
+          # real, worth pinning eventually, but not worth blocking every PR
+          # on while they are the lowest severity zizmor reports.
+          min-severity: medium
 
   iac:
     name: Infrastructure scan (Checkov + Trivy)

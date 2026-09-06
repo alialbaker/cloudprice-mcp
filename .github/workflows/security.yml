@@ -108,7 +108,7 @@ jobs:
       - name: Checkov
         run: |
           set -euo pipefail
-          pip install --quiet "checkov==3.2.535"
+          pip install --quiet "checkov==3.3.16"
           # Never fails the build: findings are advisory here and surface as
           # code scanning alerts. Trivy and gitleaks decide pass or fail.
           checkov --directory . --framework terraform             --output cli --output sarif --output-file-path console,.             --soft-fail --quiet || true

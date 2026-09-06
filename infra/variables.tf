@@ -35,9 +35,26 @@ variable "profile_token_threshold" {
 }
 
 variable "policy_engine_mode" {
-  description = "LOG_ONLY records Cedar decisions without blocking; ENFORCE denies. Start LOG_ONLY, read the decisions, then promote."
+  description = "LOG_ONLY records Cedar decisions without blocking; ENFORCE denies."
   type        = string
-  default     = "LOG_ONLY"
+  # Promoted from LOG_ONLY on 2026-09-06.
+  #
+  # The original plan was to soak in LOG_ONLY for a week and read the decisions
+  # before promoting. That plan could never have completed: there is no
+  # policy-decision log group in this account, so the decisions were being
+  # recorded nowhere. LOG_ONLY with no sink is strictly worse than ENFORCE - it
+  # blocks nothing AND tells you nothing.
+  #
+  # Promoting is safe here for one specific reason: the allow-list is GENERATED
+  # from gateway_lambda/tool-schema.json, the same file the gateway target is
+  # built from, so it cannot drift from the tools that exist. Verified before
+  # the flip - the live gateway advertises 25 tools and the schema has 25.
+  #
+  # What changes in behaviour: forbid_absurd_sizing starts actually rejecting
+  # implausible vcpu counts instead of merely noting them, and a tool added
+  # without regenerating the schema is denied rather than silently allowed.
+  # That second property is the whole point.
+  default = "ENFORCE"
 
   validation {
     condition     = contains(["LOG_ONLY", "ENFORCE"], var.policy_engine_mode)

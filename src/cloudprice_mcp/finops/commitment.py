@@ -23,8 +23,8 @@ delivered after we see what families users actually run.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from importlib import resources
-from typing import Iterable
 
 from ..compare import (
     CLOUDS,

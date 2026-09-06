@@ -10,7 +10,6 @@ import pytest
 from cloudprice_mcp import history
 from cloudprice_mcp.finops.anomaly import _SENSITIVITY_THRESHOLDS, detect_price_anomalies
 
-
 # --- Module-level (uses real bundled snapshots) ---
 
 
@@ -124,7 +123,7 @@ def six_snapshots(monkeypatch, tmp_path):
         def joinpath(self, name: str):
             return self.root / name
 
-    fake_resources_files = lambda _pkg: _FakeFiles(snap_dir)  # noqa: E731
+    fake_resources_files = lambda _pkg: _FakeFiles(snap_dir)
     monkeypatch.setattr(history, "resources", type("R", (), {"files": staticmethod(fake_resources_files)}))
     return snap_dir
 

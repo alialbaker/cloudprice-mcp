@@ -22,7 +22,6 @@ from cloudprice_mcp.history import (
     load_snapshot,
 )
 
-
 # --- Module-level (uses bundled snapshots only — currently just 2026-05-12) ---
 
 
@@ -122,7 +121,7 @@ def synthetic_snapshots(monkeypatch, tmp_path):
         def joinpath(self, name: str):
             return self.root / name
 
-    fake_resources_files = lambda _pkg: _FakeFiles(snap_dir)  # noqa: E731
+    fake_resources_files = lambda _pkg: _FakeFiles(snap_dir)
     monkeypatch.setattr(history, "resources", type("R", (), {"files": staticmethod(fake_resources_files)}))
     return snap_dir
 

@@ -14,7 +14,6 @@ import pytest
 from cloudprice_mcp.finops import extended_tokens
 from scripts.refresh_openrouter_catalog import _transform, _vendor_from_id
 
-
 # --- _transform() ---
 
 

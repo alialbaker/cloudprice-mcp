@@ -146,6 +146,7 @@ jobs:
           fi
 
       - name: Open or update PR
+        id: pr
         if: steps.changes.outputs.changed == 'true' && inputs.dry_run != true
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
@@ -158,6 +159,23 @@ jobs:
           labels: |
             auto-refresh
             prices
+
+      # Without this the PR sits open forever, and it did exactly that: the
+      # refresh ran green every week from May to September 2026 and nothing
+      # ever merged it, so main shipped a catalogue dated 2026-05-17 while the
+      # README promised a weekly refresh. Every unmerged week is also a
+      # permanent hole in the prices/ archive, since the dated snapshot is only
+      # written on merge - there is no way to backfill a week that was missed.
+      #
+      # Auto-merge is not a bypass. Branch protection still gates the merge on
+      # gitleaks, zizmor and the Checkov/Trivy scan; this only removes the
+      # human who forgets, not the checks.
+      - name: Queue the PR to merge itself once checks pass
+        if: steps.pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}
+        run: gh pr merge "$PR" --squash --auto
 
       - name: Dry-run summary
         if: steps.changes.outputs.changed == 'true' && inputs.dry_run == true

@@ -19,7 +19,6 @@ import pytest
 from scripts.fetchers import azure, oci
 from scripts.fetchers.base import MissingPriceError
 
-
 # --- Azure fetcher ---
 
 
@@ -329,7 +328,7 @@ def fake_boto3(monkeypatch):
 def test_aws_parses_hourly_usd_from_nested_response(fake_boto3):
     fake_boto3(returns_price=0.192)
     # Re-import so the fetcher picks up the patched sys.modules state.
-    from scripts.fetchers import aws  # noqa: PLC0415
+    from scripts.fetchers import aws
 
     result = aws.fetch_instance_prices([
         {"sku": "m5.xlarge", "vcpus": 4, "memory_gb": 16}
@@ -339,7 +338,7 @@ def test_aws_parses_hourly_usd_from_nested_response(fake_boto3):
 
 def test_aws_skips_zero_priced_promo_rows(fake_boto3):
     fake_boto3(returns_products=[_aws_product(0.0), _aws_product(0.0104)])
-    from scripts.fetchers import aws  # noqa: PLC0415
+    from scripts.fetchers import aws
 
     result = aws.fetch_instance_prices([
         {"sku": "t3.micro", "vcpus": 2, "memory_gb": 1}
@@ -349,7 +348,7 @@ def test_aws_skips_zero_priced_promo_rows(fake_boto3):
 
 def test_aws_raises_when_no_products_returned(fake_boto3):
     fake_boto3(returns_products=[])
-    from scripts.fetchers import aws  # noqa: PLC0415
+    from scripts.fetchers import aws
 
     with pytest.raises(MissingPriceError):
         aws.fetch_instance_prices([

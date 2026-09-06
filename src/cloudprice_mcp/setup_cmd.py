@@ -23,7 +23,6 @@ from pathlib import Path
 
 from . import clients
 
-
 # -------- Backward-compat exports (used by doctor_cmd before the v0.5.1 refactor) --------
 
 

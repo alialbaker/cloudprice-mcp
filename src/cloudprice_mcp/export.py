@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import io
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 # --- Public API ---
 

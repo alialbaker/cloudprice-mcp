@@ -24,7 +24,7 @@ _LOCATION = "US East (N. Virginia)"
 
 def fetch_instance_prices(skus: list[InstanceSku]) -> list[InstanceSku]:
     try:
-        import boto3  # noqa: I001 — optional dep at script-time only
+        import boto3
     except ImportError as e:
         raise FetchError(
             "AWS fetcher requires boto3. Install with `pip install boto3` "
@@ -60,7 +60,7 @@ def _lookup_spot(ec2_client, instance_type: str) -> float | None:
             ProductDescriptions=["Linux/UNIX"],
             MaxResults=20,  # one per AZ × recent samples
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Permission errors etc. shouldn't kill the on-demand refresh.
         # Log via the orchestrator's summary by letting the field stay unset.
         return None

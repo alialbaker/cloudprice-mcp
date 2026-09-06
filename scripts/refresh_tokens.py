@@ -131,7 +131,7 @@ def _refresh_provider(provider: str, catalog: dict, summary: TokenRefreshSummary
     try:
         fetcher = import_module(f"scripts.token_fetchers.{provider}")
         refreshed = fetcher.fetch_token_prices(known)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         summary.skipped.append((provider, f"{type(e).__name__}: {e}"))
         return
 

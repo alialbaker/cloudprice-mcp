@@ -102,7 +102,7 @@ def _lookup_one(
             raise FetchError(f"Azure Retail Prices API error for {arm_sku_name}: {e}") from e
         except httpx.HTTPError as e:
             raise FetchError(f"Azure Retail Prices API error for {arm_sku_name}: {e}") from e
-    assert resp is not None  # noqa: S101 — guaranteed by either break or raise above
+    assert resp is not None
 
     items = resp.json().get("Items", [])
 

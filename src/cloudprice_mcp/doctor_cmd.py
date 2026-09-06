@@ -14,7 +14,6 @@ from . import __version__ as cloudprice_version
 from . import clients, path_fix
 from .setup_cmd import build_cloudprice_args, detect_python_command
 
-
 CHECK = "✓"
 CROSS = "✗"
 WARN = "⚠"

@@ -17,7 +17,6 @@ import pytest
 from cloudprice_mcp.finops import extended_tokens
 from scripts.refresh_extended_catalog import _transform
 
-
 # --- transform() — given LiteLLM-shaped input ---
 
 

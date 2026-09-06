@@ -16,7 +16,6 @@ import pytest
 
 from scripts.token_fetchers.base import TokenFetchError
 
-
 # --- helpers ---
 
 
@@ -92,7 +91,7 @@ def fake_boto3(monkeypatch):
 
 def test_refreshes_known_claude_3_haiku(fake_boto3):
     fake_boto3([_haiku_input_output_pair(0.00025, 0.00125)])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     known = {
         "claude-3-haiku": {
@@ -124,7 +123,7 @@ def test_refreshes_multiple_models_in_one_call(fake_boto3):
         ),
     ]
     fake_boto3([products])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     known = {
         "claude-3-haiku": {"provider": "bedrock"},
@@ -142,7 +141,7 @@ def test_skips_models_not_in_hints_table(fake_boto3):
     """An obscure model that isn't in BEDROCK_ID_HINTS shouldn't show up in
     the output even if AWS publishes its price."""
     fake_boto3([_haiku_input_output_pair(0.00025, 0.00125)])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     known = {"some-future-model": {"provider": "bedrock"}}
     out = bedrock.fetch_token_prices(known)
@@ -165,7 +164,7 @@ def test_skips_batch_inference_skus(fake_boto3):
             inference_type="Batch",
         ),
     ]])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     out = bedrock.fetch_token_prices({"claude-3-haiku": {"provider": "bedrock"}})
     # Both inputs+outputs were batch, so we can't form a complete pair — skipped.
@@ -188,7 +187,7 @@ def test_skips_other_regions(fake_boto3):
             region_code="eu-west-1",
         ),
     ]])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     out = bedrock.fetch_token_prices({"claude-3-haiku": {"provider": "bedrock"}})
     assert out == {}
@@ -204,7 +203,7 @@ def test_skips_when_only_input_or_only_output_present(fake_boto3):
             unit="1K tokens", price=0.00025,
         ),
     ]])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     out = bedrock.fetch_token_prices({"claude-3-haiku": {"provider": "bedrock"}})
     assert out == {}
@@ -233,7 +232,7 @@ def test_picks_cheapest_when_multiple_inputs(fake_boto3):
             unit="1K tokens", price=0.00125,
         ),
     ]])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     out = bedrock.fetch_token_prices({"claude-3-haiku": {"provider": "bedrock"}})
     assert out["claude-3-haiku"]["input_per_1m_usd"] == pytest.approx(0.25)
@@ -253,7 +252,7 @@ def test_normalizes_per_token_unit_to_per_1m(fake_boto3):
             unit="tokens", price=0.00000125,
         ),
     ]])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     out = bedrock.fetch_token_prices({"claude-3-haiku": {"provider": "bedrock"}})
     assert out["claude-3-haiku"]["input_per_1m_usd"] == pytest.approx(0.25)
@@ -270,7 +269,7 @@ def test_raises_fetch_error_when_pricing_api_throws(fake_boto3, monkeypatch):
     paginator = MagicMock()
     paginator.paginate.side_effect = RuntimeError("AccessDenied: pricing:GetProducts")
     client.get_paginator.return_value = paginator
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     with pytest.raises(TokenFetchError):
         bedrock.fetch_token_prices({"claude-3-haiku": {"provider": "bedrock"}})
@@ -301,7 +300,7 @@ def test_disambiguates_claude_3_haiku_from_3_5_haiku(fake_boto3):
             unit="1K tokens", price=0.00400,
         ),
     ]])
-    from scripts.token_fetchers import bedrock  # noqa: PLC0415
+    from scripts.token_fetchers import bedrock
 
     out = bedrock.fetch_token_prices({
         "claude-3-haiku":   {"provider": "bedrock"},

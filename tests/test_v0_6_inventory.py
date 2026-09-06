@@ -14,7 +14,6 @@ from cloudprice_mcp.inventory import (
     parse_yaml_file,
 )
 
-
 # --- Minimal happy paths ---
 
 

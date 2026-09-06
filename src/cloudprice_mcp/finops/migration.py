@@ -42,7 +42,6 @@ from ..inventory import (
 )
 from ..pricing import Cloud, PriceCatalog
 
-
 # Map our extended commitment enum (6 values in inventory) onto the 3 v0.5 tiers
 # until v0.6.x ships per-family RI rates. Conservative downcast: any 1-year option
 # uses the 1yr_no_upfront discount; any 3-year option uses 3yr_partial_upfront.
@@ -190,7 +189,7 @@ def _compute_storage_cost(
     )
     if commitment != "none" and "commitment" in result:
         return result["commitment"]["totals_by_cloud"].get(cloud, 0)
-    if "combined" in result and result["combined"]:
+    if result.get("combined"):
         return result["combined"]["totals_by_cloud"].get(cloud, 0)
     return 0.0
 

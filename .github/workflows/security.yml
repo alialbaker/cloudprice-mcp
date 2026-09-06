@@ -101,18 +101,18 @@ jobs:
           # through uploaded artifacts (zizmor: artipacked).
           persist-credentials: false
 
+      # Checkov is run from pip rather than its action. The action's inputs
+      # change between versions - output_file_path is silently ignored on the
+      # pinned release, so the SARIF file was never written and the upload step
+      # then failed on a missing path. A pinned pip install has one contract.
       - name: Checkov
-        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf # v12.1347.0
-        with:
-          # Scan every .tf in the repo, not one directory - this repo has
-          # Terraform in more than one place.
-          directory: .
-          framework: terraform
-          # Start non-blocking so the first run inventories what is wrong
-          # rather than blocking every PR on day one.
-          soft_fail: true
-          output_format: cli,sarif
-          output_file_path: console,checkov.sarif
+        run: |
+          set -euo pipefail
+          pip install --quiet "checkov==3.3.16"
+          # Never fails the build: findings are advisory here and surface as
+          # code scanning alerts. Trivy and gitleaks decide pass or fail.
+          checkov --directory . --framework terraform             --output cli --output sarif --output-file-path console,.             --soft-fail --quiet || true
+          ls -la results.sarif 2>/dev/null || echo "no SARIF produced"
 
       # tfsec is deprecated - its engine now lives in Trivy, so `trivy config`
       # is the current way to get that ruleset.
@@ -134,8 +134,8 @@ jobs:
           exit-code: "0"
 
       - name: Publish Checkov findings to code scanning
-        if: always()
-        uses: github/codeql-action/upload-sarif@486fec2a3ea2626afcd8c7e9208b4f515078dd7e # codeql-bundle-v2.26.4
+        if: always() && hashFiles('results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@486fec2a3ea2626afcd8c7e9208b4f515078dd7e # v2.26.4
         with:
-          sarif_file: checkov.sarif
+          sarif_file: results.sarif
           category: checkov

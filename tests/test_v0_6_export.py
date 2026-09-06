@@ -5,7 +5,6 @@ import json
 
 from cloudprice_mcp.export import to_json, to_markdown, to_text
 
-
 # --- Sample tool outputs (representative of what FinOps tools will produce) ---
 
 

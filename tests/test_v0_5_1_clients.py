@@ -8,6 +8,7 @@ import pytest
 
 from cloudprice_mcp import clients
 from cloudprice_mcp.clients import (
+    ENTRY_NAME,
     ClaudeDesktopAdapter,
     ClineAdapter,
     ContinueAdapter,
@@ -15,9 +16,7 @@ from cloudprice_mcp.clients import (
     CursorAdapter,
     WindsurfAdapter,
     ZedAdapter,
-    ENTRY_NAME,
 )
-
 
 # --- Registry ---
 

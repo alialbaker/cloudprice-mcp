@@ -61,7 +61,7 @@ def fetch_token_prices(
     we couldn't find are omitted from the return (caller preserves the old
     entry)."""
     try:
-        import boto3  # noqa: PLC0415
+        import boto3
     except ImportError as e:
         raise TokenFetchError(
             "Bedrock token fetcher requires boto3. Install with "
@@ -110,7 +110,7 @@ def _scan_all_bedrock_products(client) -> list[dict[str, Any]]:
                 normalized = _normalize_product(product)
                 if normalized is not None:
                     rows.append(normalized)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise TokenFetchError(f"AWS Pricing API error for Bedrock: {e}") from e
     return rows
 

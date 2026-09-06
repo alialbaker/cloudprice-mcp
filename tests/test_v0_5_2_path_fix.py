@@ -13,7 +13,6 @@ import pytest
 
 from cloudprice_mcp import fix_path_cmd, path_fix
 
-
 # --- get_scripts_dir / shim_path ---
 
 

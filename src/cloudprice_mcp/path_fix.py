@@ -58,7 +58,7 @@ def is_on_current_path(directory: Path) -> bool:
 
 def _read_user_path() -> str:
     """Read the user's persistent PATH from HKCU\\Environment. Returns '' if missing."""
-    import winreg  # noqa: PLC0415 — Windows-only import; module-level would break Linux/Mac
+    import winreg
     with winreg.OpenKey(
         winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_READ
     ) as key:
@@ -71,7 +71,7 @@ def _read_user_path() -> str:
 
 def _write_user_path(value: str) -> None:
     """Write HKCU\\Environment\\Path. Uses REG_EXPAND_SZ so %VARS% expand correctly."""
-    import winreg  # noqa: PLC0415
+    import winreg
     with winreg.OpenKey(
         winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS
     ) as key:
@@ -84,8 +84,8 @@ def _broadcast_environment_change() -> None:
     Existing shells won't pick up the change (Windows limitation) — they need to
     be restarted. New shells launched after this call will see the new PATH.
     """
-    import ctypes  # noqa: PLC0415
-    from ctypes import wintypes  # noqa: PLC0415
+    import ctypes
+    from ctypes import wintypes
     HWND_BROADCAST = 0xFFFF
     WM_SETTINGCHANGE = 0x001A
     SMTO_ABORTIFHUNG = 0x0002

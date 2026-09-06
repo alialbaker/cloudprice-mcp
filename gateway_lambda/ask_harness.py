@@ -17,6 +17,7 @@ import uuid
 
 import boto3
 
+
 # Resolved at runtime rather than hardcoded: the harness ARN changes whenever
 # the harness is replaced (for example, setting encryptionKeyArn on its memory
 # requires recreation). Override with CLOUDPRICE_HARNESS_ARN if needed.

@@ -92,6 +92,16 @@ locals {
     orchestrator = aws_bedrock_inference_profile.orchestrator.id
     recommender  = aws_bedrock_inference_profile.recommender.id
   }
+
+  # USD per million tokens, used only to turn token counts into a number a
+  # human reacts to. Hardcoded because CloudWatch metric math cannot look a
+  # price up - which is a little ironic in this repo. Update when AWS moves
+  # rates; being 20% stale is still far better than reading raw token counts
+  # and guessing.
+  token_rates = {
+    orchestrator = { in = 3.00, out = 15.00 } # Sonnet 4.5
+    recommender  = { in = 0.25, out = 1.25 }  # Haiku
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "profile_token_spike" {
@@ -268,6 +278,119 @@ resource "aws_cloudwatch_dashboard" "agent" {
           query  = "SOURCE '${aws_cloudwatch_log_group.lambda.name}' | fields @timestamp, @message | filter @message like /error/ | sort @timestamp desc | limit 20"
         }
       },
+
+      # ── Governance and cost ───────────────────────────────────────────────
+      {
+        type = "text", x = 0, y = 26, width = 24, height = 2
+        properties = {
+          markdown = "## Governance and cost\nThe panels above say the system is *running*. These say it is **governed** and what it **costs**. The left panel is the one to read first: if the ENFORCE line is flat at zero while tools are being called, the policy engine is not actually deciding anything."
+        }
+      },
+      {
+        type = "metric", x = 0, y = 28, width = 8, height = 6
+        properties = {
+          title  = "Policy decisions by mode"
+          region = var.region
+          view   = "timeSeries"
+          period = 300
+          # AllowDecisions carries a Mode dimension, which makes enforcement
+          # observable rather than assumed. A policy engine can sit in
+          # LOG_ONLY for months while everyone believes it is enforcing;
+          # this is the panel that catches that, and it needs no extra
+          # instrumentation because AgentCore already emits it.
+          metrics = [
+            [{ expression = "SUM(SEARCH('{AWS/Bedrock-AgentCore,TargetResource,ToolName,OperationName,Mode} Mode=\"ENFORCE\" MetricName=\"AllowDecisions\"', 'Sum', 300))", label = "allowed (ENFORCE)", id = "pe" }],
+            [{ expression = "SUM(SEARCH('{AWS/Bedrock-AgentCore,TargetResource,ToolName,OperationName,Mode} Mode=\"LOG_ONLY\" MetricName=\"AllowDecisions\"', 'Sum', 300))", label = "allowed (LOG_ONLY - not enforcing)", id = "pl" }],
+          ]
+        }
+      },
+      {
+        type = "metric", x = 8, y = 28, width = 8, height = 6
+        properties = {
+          title  = "Policy evaluation anomalies"
+          region = var.region
+          view   = "timeSeries"
+          period = 300
+          # Under ENFORCE a request whose actions match no permit is refused
+          # before the tool runs. A sustained rise here is one of two things
+          # and both are worth a look: the allow-list has drifted from the
+          # tools that exist, or somebody is probing for tools they should
+          # not reach.
+          metrics = [
+            [{ expression = "SUM(SEARCH('{AWS/Bedrock-AgentCore,TargetResource,OperationName,PolicyEngine} MetricName=\"TotalMismatchedPolicies\"', 'Sum', 300))", label = "mismatched policies", id = "pm" }],
+            [{ expression = "SUM(SEARCH('{AWS/Bedrock-AgentCore,OperationName} MetricName=\"DeterminingPolicies\"', 'Sum', 300))", label = "determining policies", id = "pd" }],
+          ]
+        }
+      },
+      {
+        type = "metric", x = 16, y = 28, width = 8, height = 6
+        properties = {
+          title   = "Estimated model spend (USD)"
+          region  = var.region
+          view    = "timeSeries"
+          stacked = true
+          period  = 3600
+          # Token counts are not a number anyone reacts to. Dollars are.
+          # Raw counts stay hidden so the panel reads as money.
+          metrics = concat(
+            [for role, id in local.agent_profiles :
+            ["AWS/Bedrock", "InputTokenCount", "ModelId", id, { id = "${role}i", stat = "Sum", visible = false }]],
+            [for role, id in local.agent_profiles :
+            ["AWS/Bedrock", "OutputTokenCount", "ModelId", id, { id = "${role}o", stat = "Sum", visible = false }]],
+            [for role, rate in local.token_rates :
+            [{ expression = "(${role}i / 1000000 * ${rate.in}) + (${role}o / 1000000 * ${rate.out})", label = "${role}", id = "${role}c" }]],
+          )
+        }
+      },
+      {
+        type = "alarm", x = 0, y = 34, width = 24, height = 4
+        properties = {
+          title = "Alarm state - INSUFFICIENT_DATA is not the same as healthy"
+          # An alarm keyed to a dimension value that never occurs sits in
+          # INSUFFICIENT_DATA forever: it never fires, never errors, and looks
+          # fine on every other panel. Putting the states on the dashboard is
+          # the cheapest way to notice. Ordered most-severe first.
+          sortBy = "stateUpdatedTimestamp"
+          states = ["ALARM", "INSUFFICIENT_DATA", "OK"]
+          alarms = concat(
+            [for a in aws_cloudwatch_metric_alarm.profile_token_spike : a.arn],
+            [for a in aws_cloudwatch_metric_alarm.profile_throttles : a.arn],
+            [aws_cloudwatch_metric_alarm.policy_mismatch.arn],
+          )
+        }
+      },
     ]
   })
+}
+
+# ── Policy alarm ───────────────────────────────────────────────────────────
+# Only meaningful now that the engine is in ENFORCE: in LOG_ONLY a mismatch
+# costs nothing, whereas under ENFORCE it is a refused tool call. Threshold is
+# deliberately not 1 - a single mismatch is noise, a sustained run is a signal.
+#
+# Cost: one alarm, $0.10/month.
+
+resource "aws_cloudwatch_metric_alarm" "policy_mismatch" {
+  alarm_name        = "${local.name}-policy-mismatch"
+  alarm_description = "Cedar refused tool calls on the cloudprice gateway. Either the allow-list has drifted from the deployed tool schema, or something is requesting tools it should not have."
+
+  namespace   = "AWS/Bedrock-AgentCore"
+  metric_name = "TotalMismatchedPolicies"
+  dimensions = {
+    TargetResource = aws_bedrockagentcore_gateway.cloudprice.gateway_id
+    OperationName  = "AuthorizeAction"
+    PolicyEngine   = aws_bedrockagentcore_policy_engine.cloudprice.policy_engine_id
+  }
+
+  statistic           = "Sum"
+  period              = 900
+  evaluation_periods  = 2
+  threshold           = 10
+  comparison_operator = "GreaterThanThreshold"
+
+  # Without this a quiet period reads as a breach on a Sum metric.
+  treat_missing_data = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
 }

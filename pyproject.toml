@@ -18,7 +18,7 @@ classifiers = [
 dependencies = [
     # mcp 2.x removed Server.list_tools; the stdio server in server.py
     # targets the 1.x low-level API. Cap until that migration is done.
-    "mcp>=1.0.0,<2",
+    "mcp>=1.0.0,<3",
     "httpx>=0.27.0",
     "pyyaml>=6.0",
 ]
